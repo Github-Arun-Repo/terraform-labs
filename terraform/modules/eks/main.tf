@@ -1,4 +1,4 @@
-﻿# Author: Arunasalam Govindasamy
+# Author: Arunasalam Govindasamy
 
 data "aws_ami" "eks_node" {
   most_recent = true
@@ -15,7 +15,7 @@ data "aws_ami" "eks_node" {
   }
 }
 
-# â”€â”€ Cluster Security Group â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Cluster Security Group ----------------------------------------------------
 
 resource "aws_security_group" "cluster" {
   name_prefix = "${var.cluster_name}-cluster-"
@@ -48,7 +48,7 @@ resource "aws_vpc_security_group_egress_rule" "cluster_egress" {
   tags = merge(var.tags, { Name = "${var.cluster_name}-cluster-egress" })
 }
 
-# â”€â”€ Node Security Group â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Node Security Group -------------------------------------------------------
 
 resource "aws_security_group" "node" {
   name_prefix = "${var.cluster_name}-node-"
@@ -106,7 +106,7 @@ resource "aws_vpc_security_group_egress_rule" "node_egress" {
   tags = merge(var.tags, { Name = "${var.cluster_name}-node-egress" })
 }
 
-# â”€â”€ EKS Cluster â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- EKS Cluster ---------------------------------------------------------------
 
 resource "aws_eks_cluster" "this" {
   name     = var.cluster_name
@@ -130,7 +130,7 @@ resource "aws_eks_cluster" "this" {
   ]
 }
 
-# â”€â”€ Bootstrap userdata for self-managed nodes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Bootstrap userdata for self-managed nodes ---------------------------------
 
 locals {
   node_userdata_tpl = <<-EOT
@@ -143,7 +143,7 @@ locals {
   EOT
 }
 
-# â”€â”€ Self-Managed Node Groups (Launch Template per group) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Self-Managed Node Groups (Launch Template per group) ---------------------
 
 resource "aws_launch_template" "node_group" {
   for_each = var.node_groups

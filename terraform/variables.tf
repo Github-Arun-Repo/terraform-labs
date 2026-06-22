@@ -1,4 +1,4 @@
-﻿# Author: Arunasalam Govindasamy
+# Author: Arunasalam Govindasamy
 
 variable "aws_region" {
   description = "AWS region to deploy into (e.g. eu-west-1, us-east-1)."
@@ -21,17 +21,17 @@ variable "availability_zones" {
 }
 
 variable "public_subnet_cidrs" {
-  description = "CIDR blocks for public subnets â€” one per AZ."
+  description = "CIDR blocks for public subnets - one per AZ."
   type        = list(string)
 }
 
 variable "private_app_subnet_cidrs" {
-  description = "CIDR blocks for private app-tier subnets â€” one per AZ."
+  description = "CIDR blocks for private app-tier subnets - one per AZ."
   type        = list(string)
 }
 
 variable "private_db_subnet_cidrs" {
-  description = "CIDR blocks for private DB-tier subnets â€” one per AZ."
+  description = "CIDR blocks for private DB-tier subnets - one per AZ."
   type        = list(string)
 }
 
@@ -65,7 +65,7 @@ variable "default_tags" {
   default     = {}
 }
 
-# â”€â”€ RDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- RDS -----------------------------------------------------------------------
 
 variable "db_identifier" {
   description = "Unique identifier for the RDS instance."
@@ -107,11 +107,11 @@ variable "db_username" {
 }
 
 variable "db_password" {
-  description = "Master password for the database. Provide via TF_VAR_db_password env var â€” do not commit to source control."
+  description = "Master password for the database. Provide via TF_VAR_db_password env var - do not commit to source control."
   type        = string
   sensitive   = true
 
-# â”€â”€ EKS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- EKS -----------------------------------------------------------------------
 
 variable "eks_cluster_name" {
   description = "Name of the EKS cluster."

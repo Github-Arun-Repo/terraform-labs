@@ -1,6 +1,6 @@
-﻿# Author: Arunasalam Govindasamy
+# Author: Arunasalam Govindasamy
 
-# â”€â”€ RDS Security Group â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- RDS Security Group --------------------------------------------------------
 
 resource "aws_security_group" "rds" {
   name_prefix = "${var.identifier}-rds-"
@@ -40,7 +40,7 @@ resource "aws_vpc_security_group_egress_rule" "rds_egress" {
   })
 }
 
-# â”€â”€ RDS Parameter Group â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- RDS Parameter Group -------------------------------------------------------
 
 resource "aws_db_parameter_group" "this" {
   name_prefix = "${var.identifier}-"
@@ -56,7 +56,7 @@ resource "aws_db_parameter_group" "this" {
   }
 }
 
-# â”€â”€ RDS Instance (free-tier) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- RDS Instance (free-tier) --------------------------------------------------
 
 resource "aws_db_instance" "this" {
   identifier = var.identifier
@@ -67,7 +67,7 @@ resource "aws_db_instance" "this" {
 
   # Free-tier sizing
   instance_class        = "db.t3.micro"
-  allocated_storage     = 20    # GiB â€” free tier allowance
+  allocated_storage     = 20    # GiB - free tier allowance
   max_allocated_storage = 0     # disable auto-scaling to stay within free tier
   storage_type          = "gp2"
   storage_encrypted     = true
@@ -91,7 +91,7 @@ resource "aws_db_instance" "this" {
   auto_minor_version_upgrade = true
   maintenance_window         = "Mon:04:00-Mon:05:00"
 
-  # Backups â€” free tier includes automated backup
+  # Backups - free tier includes automated backup
   backup_retention_period = 7
   backup_window           = "03:00-04:00"
 

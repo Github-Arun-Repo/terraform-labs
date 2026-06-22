@@ -1,11 +1,11 @@
-﻿# Author: Arunasalam Govindasamy
+# Author: Arunasalam Govindasamy
 
 aws_region = "eu-west-1"
 
 vpc_name = "my-vpc"
 vpc_cidr = "10.0.0.0/16"
 
-# Three AZs â€” adjust to match your region
+# Three AZs - adjust to match your region
 availability_zones = ["eu-west-1a", "eu-west-1b", "eu-west-1c"]
 
 # One public subnet per AZ
@@ -29,7 +29,7 @@ private_db_subnet_cidrs = [
   "10.0.22.0/24",
 ]
 
-# NAT â€” one per AZ for full HA; set single_nat_gateway = true to save cost in non-prod
+# NAT - one per AZ for full HA; set single_nat_gateway = true to save cost in non-prod
 enable_nat_gateway   = true
 single_nat_gateway   = false
 db_subnet_enable_nat = false
@@ -42,7 +42,7 @@ default_tags = {
   ManagedBy   = "terraform"
 }
 
-# â”€â”€ RDS (free tier) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- RDS (free tier) -----------------------------------------------------------
 
 db_identifier             = "my-app-db"
 db_engine                 = "mysql"
@@ -51,15 +51,15 @@ db_parameter_group_family = "mysql8.0"
 db_port                   = 3306
 db_name                   = "appdb"
 db_username               = "dbadmin"
-# db_password â€” supply via environment variable to avoid committing secrets:
+# db_password - supply via environment variable to avoid committing secrets:
 #   export TF_VAR_db_password="YourStrongPassword123!"
 
-# â”€â”€ EKS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- EKS -----------------------------------------------------------------------
 
 eks_cluster_name    = "my-app-eks"
 eks_cluster_version = "1.30"
 
-# Three self-managed node groups â€” all t3.micro (free-tier eligible), 1 node each for labs.
+# Three self-managed node groups - all t3.micro (free-tier eligible), 1 node each for labs.
 # Labels are passed straight through to kubelet --node-labels on every node in the group.
 eks_node_groups = {
   api = {

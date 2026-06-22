@@ -1,11 +1,11 @@
-﻿# Author: Arunasalam Govindasamy
+# Author: Arunasalam Govindasamy
 
 locals {
   az_count     = length(var.availability_zones)
   nat_gw_count = var.enable_nat_gateway ? (var.single_nat_gateway ? 1 : local.az_count) : 0
 }
 
-# â”€â”€ VPC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- VPC -----------------------------------------------------------------------
 
 resource "aws_vpc" "this" {
   cidr_block           = var.vpc_cidr
@@ -17,7 +17,7 @@ resource "aws_vpc" "this" {
   })
 }
 
-# â”€â”€ Internet Gateway â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Internet Gateway ----------------------------------------------------------
 
 resource "aws_internet_gateway" "this" {
   vpc_id = aws_vpc.this.id
@@ -27,7 +27,7 @@ resource "aws_internet_gateway" "this" {
   })
 }
 
-# â”€â”€ Public Subnets (one per AZ) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Public Subnets (one per AZ) -----------------------------------------------
 
 resource "aws_subnet" "public" {
   count = local.az_count
@@ -63,7 +63,7 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# â”€â”€ NAT Gateways â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- NAT Gateways --------------------------------------------------------------
 
 resource "aws_eip" "nat" {
   count  = local.nat_gw_count
@@ -89,7 +89,7 @@ resource "aws_nat_gateway" "this" {
   depends_on = [aws_internet_gateway.this]
 }
 
-# â”€â”€ Private App Subnets (one per AZ) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Private App Subnets (one per AZ) -----------------------------------------
 
 resource "aws_subnet" "private_app" {
   count = local.az_count
@@ -128,7 +128,7 @@ resource "aws_route_table_association" "private_app" {
   route_table_id = aws_route_table.private_app[count.index].id
 }
 
-# â”€â”€ Private DB Subnets (one per AZ) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Private DB Subnets (one per AZ) ------------------------------------------
 
 resource "aws_subnet" "private_db" {
   count = local.az_count
@@ -169,7 +169,7 @@ resource "aws_route_table_association" "private_db" {
   route_table_id = aws_route_table.private_db[count.index].id
 }
 
-# â”€â”€ DB Subnet Group (for RDS/Aurora) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- DB Subnet Group (for RDS/Aurora) -----------------------------------------
 
 resource "aws_db_subnet_group" "this" {
   count = var.create_db_subnet_group ? 1 : 0

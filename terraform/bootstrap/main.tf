@@ -1,4 +1,4 @@
-﻿# Author: Arunasalam Govindasamy
+# Author: Arunasalam Govindasamy
 
 terraform {
   required_version = ">= 1.9.0"
@@ -15,7 +15,7 @@ provider "aws" {
   region = var.aws_region
 }
 
-# â”€â”€ S3 Bucket for Terraform State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- S3 Bucket for Terraform State ---------------------------------------------
 
 resource "aws_s3_bucket" "terraform_state" {
   bucket = var.state_bucket_name
@@ -71,7 +71,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "terraform_state" {
   }
 }
 
-# â”€â”€ DynamoDB Table for State Locking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- DynamoDB Table for State Locking ------------------------------------------
 
 resource "aws_dynamodb_table" "terraform_locks" {
   name         = var.dynamodb_table_name

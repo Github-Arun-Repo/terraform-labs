@@ -1,4 +1,4 @@
-﻿# Author: Arunasalam Govindasamy
+# Author: Arunasalam Govindasamy
 
 output "vpc_id" {
   description = "ID of the VPC."
@@ -26,7 +26,7 @@ output "public_route_table_id" {
   value       = aws_route_table.public.id
 }
 
-# Private â€” App tier
+# Private - App tier
 output "private_app_subnet_ids" {
   description = "IDs of the private application-tier subnets (one per AZ)."
   value       = aws_subnet.private_app[*].id
@@ -37,7 +37,7 @@ output "private_app_route_table_ids" {
   value       = aws_route_table.private_app[*].id
 }
 
-# Private â€” DB tier
+# Private - DB tier
 output "private_db_subnet_ids" {
   description = "IDs of the private database-tier subnets (one per AZ)."
   value       = aws_subnet.private_db[*].id

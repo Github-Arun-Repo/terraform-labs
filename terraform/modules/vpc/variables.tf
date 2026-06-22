@@ -1,4 +1,4 @@
-﻿# Author: Arunasalam Govindasamy
+# Author: Arunasalam Govindasamy
 
 variable "vpc_name" {
   description = "Name of the VPC."
@@ -21,7 +21,7 @@ variable "availability_zones" {
 }
 
 variable "public_subnet_cidrs" {
-  description = "CIDR blocks for public subnets â€” one entry per AZ."
+  description = "CIDR blocks for public subnets - one entry per AZ."
   type        = list(string)
 
   validation {
@@ -31,7 +31,7 @@ variable "public_subnet_cidrs" {
 }
 
 variable "private_app_subnet_cidrs" {
-  description = "CIDR blocks for private application-tier subnets â€” one entry per AZ."
+  description = "CIDR blocks for private application-tier subnets - one entry per AZ."
   type        = list(string)
 
   validation {
@@ -41,7 +41,7 @@ variable "private_app_subnet_cidrs" {
 }
 
 variable "private_db_subnet_cidrs" {
-  description = "CIDR blocks for private database-tier subnets â€” one entry per AZ."
+  description = "CIDR blocks for private database-tier subnets - one entry per AZ."
   type        = list(string)
 
   validation {

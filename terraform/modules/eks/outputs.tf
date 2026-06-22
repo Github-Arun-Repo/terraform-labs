@@ -1,4 +1,4 @@
-﻿# Author: Arunasalam Govindasamy
+# Author: Arunasalam Govindasamy
 
 output "cluster_name" {
   description = "Name of the EKS cluster."
@@ -36,7 +36,7 @@ output "node_iam_instance_profile_arn" {
 }
 
 output "autoscaling_group_names" {
-  description = "Map of node group name â†’ ASG name."
+  description = "Map of node group name -> ASG name."
   value       = { for k, v in aws_autoscaling_group.node_group : k => v.name }
 }
 

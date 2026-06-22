@@ -1,4 +1,4 @@
-﻿# Author: Arunasalam Govindasamy
+# Author: Arunasalam Govindasamy
 
 module "vpc" {
   source = "./modules/vpc"
@@ -19,7 +19,7 @@ module "vpc" {
   tags = var.default_tags
 }
 
-# â”€â”€ App-tier Security Group â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- App-tier Security Group ---------------------------------------------------
 # Attach this SG to EC2 instances (or ECS tasks) in the private app subnets.
 # The RDS module references it to scope its ingress rule.
 
@@ -49,7 +49,7 @@ resource "aws_vpc_security_group_egress_rule" "app_egress" {
   })
 }
 
-# â”€â”€ ALB Security Group (public subnets) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- ALB Security Group (public subnets) --------------------------------------
 # The ALB lives in public subnets and is the only path to reach EKS nodes.
 
 resource "aws_security_group" "alb" {
@@ -95,7 +95,7 @@ resource "aws_vpc_security_group_egress_rule" "alb_egress" {
   tags = merge(var.default_tags, { Name = "${var.vpc_name}-alb-egress" })
 }
 
-# â”€â”€ EKS Module â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- EKS Module ----------------------------------------------------------------
 
 module "eks" {
   source = "./modules/eks"
@@ -112,7 +112,7 @@ module "eks" {
   tags = var.default_tags
 }
 
-# Allow EKS nodes to reach RDS â€” node SG gets the DB port opened
+# Allow EKS nodes to reach RDS - node SG gets the DB port opened
 resource "aws_vpc_security_group_ingress_rule" "rds_from_eks_nodes" {
   security_group_id            = module.rds.rds_security_group_id
   description                  = "Allow EKS nodes to reach RDS"
@@ -124,7 +124,7 @@ resource "aws_vpc_security_group_ingress_rule" "rds_from_eks_nodes" {
   tags = merge(var.default_tags, { Name = "${var.vpc_name}-rds-ingress-eks-nodes" })
 }
 
-# â”€â”€ RDS Module â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- RDS Module ----------------------------------------------------------------
 
 module "rds" {
   source = "./modules/rds"

@@ -23,6 +23,7 @@
 ## 1. High-Level Architecture
 
 ```mermaid
+%%{init: {'theme': 'default', 'flowchart': {'useMaxWidth': true, 'htmlLabels': true}}}%%
 graph TB
 	subgraph Internet
 		USER(👤 User / Client)
@@ -72,6 +73,7 @@ graph TB
 Each **Availability Zone** gets exactly **3 subnets** — one in each tier:
 
 ```mermaid
+%%{init: {'theme': 'default', 'flowchart': {'useMaxWidth': true, 'htmlLabels': true}}}%%
 graph LR
 	subgraph AZ_A["Availability Zone A"]
 		PUB_A["Public\n10.0.0.0/24"]
@@ -110,6 +112,7 @@ graph LR
 Security Groups enforce **least-privilege** at every hop. No CIDR-based rules exist between tiers — all cross-tier rules reference SG IDs.
 
 ```mermaid
+%%{init: {'theme': 'default', 'flowchart': {'useMaxWidth': true, 'htmlLabels': true}}}%%
 flowchart LR
 	INET(["🌍 Internet"])
 
@@ -131,6 +134,7 @@ flowchart LR
 ## 4. Traffic Flow — Request to Database
 
 ```mermaid
+%%{init: {'theme': 'default', 'sequence': {'useMaxWidth': true}}}%%
 sequenceDiagram
 	actor User
 	participant ALB as ALB (Public Subnet)
@@ -153,7 +157,7 @@ sequenceDiagram
 ## 5. Module Structure
 
 ```
-terraform-labs/
+terraform/
 ├── backend.tf              # S3 + DynamoDB remote state backend
 ├── versions.tf             # AWS provider ~> 5.0, Terraform >= 1.9
 ├── main.tf                 # Root caller — ALB SG, VPC, RDS, EKS modules
@@ -192,6 +196,7 @@ terraform-labs/
 Three **self-managed node groups** are provisioned via EC2 Launch Templates + Auto Scaling Groups. Labels are passed from `terraform.tfvars` down through the root module into the EKS module and injected as `--node-labels` in the bootstrap userdata.
 
 ```mermaid
+%%{init: {'theme': 'default', 'flowchart': {'useMaxWidth': true, 'htmlLabels': true}}}%%
 graph TB
 	EKS_CP["EKS Control Plane\n(private endpoint)"]
 
@@ -223,6 +228,7 @@ All label **values** are configurable from `terraform.tfvars` via `eks_node_grou
 ## 7. Remote State Design
 
 ```mermaid
+%%{init: {'theme': 'default', 'flowchart': {'useMaxWidth': true, 'htmlLabels': true}}}%%
 flowchart LR
 	DEV(["👨‍💻 Developer\nterraform apply"])
 
@@ -262,13 +268,13 @@ flowchart LR
 ### Step 1 — Bootstrap remote state (run once)
 
 ```bash
-cd bootstrap
+cd terraform/bootstrap
 # Edit terraform.tfvars — set a globally unique state_bucket_name
 terraform init
 terraform apply
 ```
 
-### Step 2 — Update backend.tf in the root
+### Step 2 — Update backend.tf in terraform/
 
 Copy the outputs from Step 1 into `backend.tf`:
 
@@ -285,7 +291,7 @@ backend "s3" {
 ### Step 3 — Deploy the full stack
 
 ```bash
-cd ..   # back to repo root
+cd terraform
 export TF_VAR_db_password="YourStrongPassword123!"
 terraform init    # connects to S3 backend
 terraform plan
@@ -315,4 +321,3 @@ kubectl get nodes --show-labels
 | DynamoDB Lock Table | 25 GB + 25 WCU/RCU free | Negligible (PAY_PER_REQUEST) |
 
 > **Tip:** Set `single_nat_gateway = true` and reduce `desired_size` to `0` for idle environments to minimise costs.
-# terraform-labs

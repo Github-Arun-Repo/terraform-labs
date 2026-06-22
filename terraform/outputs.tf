@@ -1,4 +1,4 @@
-﻿# Author: Arunasalam Govindasamy
+# Author: Arunasalam Govindasamy
 
 output "vpc_id" {
   description = "ID of the VPC."
@@ -40,7 +40,7 @@ output "app_security_group_id" {
   value       = aws_security_group.app.id
 }
 
-# â”€â”€ RDS Outputs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- RDS Outputs ---------------------------------------------------------------
 
 output "db_endpoint" {
   description = "RDS connection endpoint (host:port)."
@@ -66,7 +66,7 @@ output "rds_security_group_id" {
   description = "ID of the RDS Security Group."
   value       = module.rds.rds_security_group_id
 
-# â”€â”€ EKS Outputs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- EKS Outputs ---------------------------------------------------------------
 
 output "eks_cluster_name" {
   description = "EKS cluster name."
@@ -89,7 +89,7 @@ output "alb_security_group_id" {
 }
 
 output "eks_node_groups" {
-  description = "Map of node group name â†’ ASG name."
+  description = "Map of node group name -> ASG name."
   value       = module.eks.autoscaling_group_names
 }
 }

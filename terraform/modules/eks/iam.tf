@@ -1,6 +1,6 @@
-﻿# Author: Arunasalam Govindasamy
+# Author: Arunasalam Govindasamy
 
-# â”€â”€ EKS Cluster IAM Role â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- EKS Cluster IAM Role ------------------------------------------------------
 
 data "aws_iam_policy_document" "cluster_assume_role" {
   statement {
@@ -31,7 +31,7 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSVPCResourceControlle
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSVPCResourceController"
 }
 
-# â”€â”€ Worker Node IAM Role (shared across all node groups) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# -- Worker Node IAM Role (shared across all node groups) ----------------------
 
 data "aws_iam_policy_document" "node_assume_role" {
   statement {

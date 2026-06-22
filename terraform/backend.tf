@@ -1,6 +1,6 @@
-﻿# Author: Arunasalam Govindasamy
+# Author: Arunasalam Govindasamy
 
-# Remote state backend â€” S3 + DynamoDB locking
+# Remote state backend - S3 + DynamoDB locking
 #
 # PREREQUISITES: run the bootstrap module first:
 #   cd bootstrap && terraform init && terraform apply
