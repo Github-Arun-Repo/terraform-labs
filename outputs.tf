@@ -1,0 +1,96 @@
+﻿# Author: Arunasalam Govindasamy
+
+output "vpc_id" {
+  description = "ID of the VPC."
+  value       = module.vpc.vpc_id
+}
+
+output "vpc_cidr" {
+  description = "CIDR block of the VPC."
+  value       = module.vpc.vpc_cidr
+}
+
+output "public_subnet_ids" {
+  description = "IDs of the public subnets."
+  value       = module.vpc.public_subnet_ids
+}
+
+output "private_app_subnet_ids" {
+  description = "IDs of the private app-tier subnets."
+  value       = module.vpc.private_app_subnet_ids
+}
+
+output "private_db_subnet_ids" {
+  description = "IDs of the private DB-tier subnets."
+  value       = module.vpc.private_db_subnet_ids
+}
+
+output "db_subnet_group_name" {
+  description = "Name of the RDS DB subnet group."
+  value       = module.vpc.db_subnet_group_name
+}
+
+output "nat_gateway_public_ips" {
+  description = "Public IPs of the NAT Gateways."
+  value       = module.vpc.nat_gateway_public_ips
+}
+
+output "app_security_group_id" {
+  description = "ID of the app-tier Security Group. Attach this to your EC2/ECS workloads."
+  value       = aws_security_group.app.id
+}
+
+# â”€â”€ RDS Outputs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+output "db_endpoint" {
+  description = "RDS connection endpoint (host:port)."
+  value       = module.rds.db_endpoint
+}
+
+output "db_host" {
+  description = "RDS hostname."
+  value       = module.rds.db_host
+}
+
+output "db_port" {
+  description = "RDS port."
+  value       = module.rds.db_port
+}
+
+output "db_name" {
+  description = "Initial database name."
+  value       = module.rds.db_name
+}
+
+output "rds_security_group_id" {
+  description = "ID of the RDS Security Group."
+  value       = module.rds.rds_security_group_id
+
+# â”€â”€ EKS Outputs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+output "eks_cluster_name" {
+  description = "EKS cluster name."
+  value       = module.eks.cluster_name
+}
+
+output "eks_cluster_endpoint" {
+  description = "EKS API server endpoint (private)."
+  value       = module.eks.cluster_endpoint
+}
+
+output "eks_node_security_group_id" {
+  description = "Security Group ID of the EKS worker nodes."
+  value       = module.eks.node_security_group_id
+}
+
+output "alb_security_group_id" {
+  description = "Security Group ID of the public ALB."
+  value       = aws_security_group.alb.id
+}
+
+output "eks_node_groups" {
+  description = "Map of node group name â†’ ASG name."
+  value       = module.eks.autoscaling_group_names
+}
+}
+
