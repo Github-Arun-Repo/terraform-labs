@@ -1,0 +1,23 @@
+nameOverride: ""
+fullnameOverride: "document-management-alb"
+
+service:
+  name: document-management-service
+  port: 80
+
+ingress:
+  enabled: true
+  className: alb
+  scheme: internet-facing
+  targetType: ip
+  listenPorts: '[{"HTTP":80}]'
+  healthcheckPath: /actuator/health
+  healthcheckPort: traffic-port
+  healthcheckProtocol: HTTP
+  host: ""
+  path: /
+  pathType: Prefix
+  groupName: ""
+  sslRedirect: false
+  certificateArn: ""
+  extraAnnotations: {}

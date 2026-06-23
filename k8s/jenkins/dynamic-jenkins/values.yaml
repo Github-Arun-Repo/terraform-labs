@@ -1,0 +1,69 @@
+jenkins:
+  controller:
+    numExecutors: 0
+    admin:
+      createSecret: true
+      existingSecret: ""
+      userKey: jenkins-admin-user
+      passwordKey: jenkins-admin-password
+    serviceType: ClusterIP
+    installPlugins:
+      - kubernetes:4306.vc91e951ea_eb_d
+      - workflow-aggregator:600.vb_57cdd26fdd7
+      - git:5.7.0
+      - configuration-as-code:1932.v75cb_b_f1b_698d
+      - job-dsl:1.90
+      - blueocean:1.27.16
+    JCasC:
+      defaultConfig: true
+      configScripts:
+        kubernetes-cloud: |
+          jenkins:
+            clouds:
+              - kubernetes:
+                  name: "kubernetes"
+                  namespace: "jenkins"
+                  jenkinsUrl: "http://dynamic-jenkins-jenkins.jenkins.svc.cluster.local:8080"
+                  jenkinsTunnel: "dynamic-jenkins-jenkins-agent.jenkins.svc.cluster.local:50000"
+                  containerCapStr: "20"
+                  templates:
+                    - name: "maven"
+                      namespace: "jenkins"
+                      label: "maven"
+                      serviceAccount: "default"
+                      containers:
+                        - name: "jnlp"
+                          image: "jenkins/inbound-agent:latest-jdk17"
+                          alwaysPullImage: false
+                          args: "${computer.jnlpmac} ${computer.name}"
+                        - name: "maven"
+                          image: "maven:3.9.9-eclipse-temurin-21"
+                          command: "sleep"
+                          args: "99d"
+                    - name: "docker"
+                      namespace: "jenkins"
+                      label: "docker"
+                      serviceAccount: "default"
+                      containers:
+                        - name: "jnlp"
+                          image: "jenkins/inbound-agent:latest-jdk17"
+                          alwaysPullImage: false
+                          args: "${computer.jnlpmac} ${computer.name}"
+                        - name: "docker"
+                          image: "docker:27-cli"
+                          command: "sleep"
+                          args: "99d"
+  agent:
+    enabled: true
+    maxRequestsPerHostStr: "64"
+    workspaceVolume:
+      type: EmptyDirWorkspaceVolume
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: gp3
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+    name: ""

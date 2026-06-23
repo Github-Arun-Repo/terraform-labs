@@ -1,0 +1,6 @@
+apiVersion: v2
+name: document-management-service
+description: Helm chart for deploying the Document Management Service to EKS
+type: application
+version: 0.1.0
+appVersion: "0.0.1"
