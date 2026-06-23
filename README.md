@@ -2,186 +2,235 @@
 
 # Terraform Labs — Architecture Command Center
 
-> A high-clarity, architecture-first repository for AWS infrastructure, Java service design, Kubernetes runtime, and dynamic Jenkins delivery.
+> Welcome to a production-grade reference architecture for AWS infrastructure, Spring Boot microservices, Kubernetes orchestration, and dynamic CI/CD delivery. This repository demonstrates **enterprise patterns** using **Infrastructure-as-Code**, **containerization**, and **GitOps principles**.
+
+---
+
+## 🎯 Quick Navigation
+
+Explore four core domains of this architecture. **Click any box below to dive into detailed documentation:**
 
 <table>
   <tr>
     <td align="center" width="25%">
-      <a href="#infrastructure-architecture-default-view">
-        <img src="https://img.shields.io/badge/Infrastructure-Default%20View-0B3D91?style=for-the-badge&logo=amazonaws&logoColor=white" alt="Infrastructure" />
-      </a>
-      <br/>
-      <strong>Infrastructure Architecture</strong><br/>
-      VPC, EKS, RDS, ALB, state backend
+      <h3>🏗️ Infrastructure</h3>
+      <p>AWS VPC, EKS Cluster, RDS Database</p>
+      <p><strong><a href="terraform/README.md">→ View Full Guide</a></strong></p>
+      <p style="font-size: 0.9em;">Multi-tier networking, security groups, state management</p>
     </td>
     <td align="center" width="25%">
-      <a href="#application-design">
-        <img src="https://img.shields.io/badge/Application-Design-0E7490?style=for-the-badge&logo=spring&logoColor=white" alt="Application Design" />
-      </a>
-      <br/>
-      <strong>Application Design</strong><br/>
-      Service boundaries, domain, API, security
+      <h3>📱 Application</h3>
+      <p>Spring Boot Service, JWT Auth, APIs</p>
+      <p><strong><a href="applications/README.md">→ View Full Guide</a></strong></p>
+      <p style="font-size: 0.9em;">Domain model, API contracts, security boundaries</p>
     </td>
     <td align="center" width="25%">
-      <a href="#kubernetes-runtime">
-        <img src="https://img.shields.io/badge/Kubernetes-Runtime-1D4ED8?style=for-the-badge&logo=kubernetes&logoColor=white" alt="Kubernetes Runtime" />
-      </a>
-      <br/>
-      <strong>Kubernetes Runtime</strong><br/>
-      Helm deployment model, ALB ingress
+      <h3>⚙️ Kubernetes</h3>
+      <p>EKS Runtime, Helm Charts, Ingress</p>
+      <p><strong><a href="k8s/README.md">→ View Full Guide</a></strong></p>
+      <p style="font-size: 0.9em;">Deployment model, Helm architecture, traffic routing</p>
     </td>
     <td align="center" width="25%">
-      <a href="#delivery-platform-jenkins">
-        <img src="https://img.shields.io/badge/Delivery-Jenkins-9333EA?style=for-the-badge&logo=jenkins&logoColor=white" alt="Delivery Platform" />
-      </a>
-      <br/>
-      <strong>Delivery Platform</strong><br/>
-      Dynamic agents, pipeline runtime
+      <h3>🚀 Delivery</h3>
+      <p>Jenkins, Dynamic Agents, Pipelines</p>
+      <p><strong><a href="jenkins/README.md">→ View Full Guide</a></strong></p>
+      <p style="font-size: 0.9em;">CI/CD patterns, on-demand agent pods, build model</p>
     </td>
   </tr>
 </table>
 
-## Read by Folder
-
-- Infrastructure details: [terraform/README.md](terraform/README.md)
-- Application architecture: [applications/README.md](applications/README.md)
-- Kubernetes deployment model: [k8s/README.md](k8s/README.md)
-- CI/CD delivery model: [jenkins/README.md](jenkins/README.md)
-
 ---
 
-## Infrastructure Architecture (Default View)
-
-This is the default section because platform reliability starts at infrastructure quality.
+## 💡 Why This Architecture?
 
 ```mermaid
 graph TB
-  U[User or Client] --> ALB[Application Load Balancer]
-
-  subgraph VPC[10.0.0.0/16]
-    subgraph PUB[Public Subnets]
-      ALB
-      NAT[NAT Gateway]
+    Users["👥 Users / Clients"]
+    Users -->|HTTPS 443| ALB["🔀 Application Load Balancer"]
+    
+    ALB --> EKS["☸️ EKS Cluster"]
+    
+    subgraph EKS_Interior["Inside EKS"]
+        Apps["📱 App Pods (replicas=2)"]
+        Jenkins["🚀 Jenkins Controller"]
+        Agents["⚙️ Dynamic Agent Pods"]
     end
-
-    subgraph APP[Private App Subnets]
-      EKS[EKS Cluster]
-      N1[Node Group api]
-      N2[Node Group worker]
-      N3[Node Group batch]
-    end
-
-    subgraph DB[Private DB Subnets]
-      RDS[RDS MySQL]
-    end
-  end
-
-  EKS --> N1
-  EKS --> N2
-  EKS --> N3
-  N1 --> RDS
-  N2 --> RDS
-  N3 --> RDS
-
-  subgraph State[Remote Terraform State]
-    S3[S3 Bucket]
-    DDB[DynamoDB Lock Table]
-  end
+    
+    EKS --> EKS_Interior
+    Apps --> RDS["🗄️ RDS MySQL"]
+    
+    TF["📝 Terraform Infrastructure Code"]
+    TF -.->|Manages| EKS & ALB & RDS
+    
+    Git["📦 Git Repository"]
+    Git -.->|Drives| Jenkins
+    Jenkins -.->|Builds & Deploys| Apps
 ```
 
-### Why this design is strong
+**Four architectural tiers:**
 
-1. Network segmentation by intent: public ingress, private compute, isolated database.
-2. Security-group-to-security-group traffic control instead of open CIDR rules.
-3. Stateful components isolated from pod churn.
-4. Remote Terraform state with locking to prevent destructive concurrency.
-
-### Quick infra outcomes
-
-- Internet entry is only via ALB.
-- Workloads run in private subnets.
-- Database is private and not internet-addressable.
-- State operations are controlled and recoverable.
+1. **Infrastructure Reliability** — Terraform manages multi-AZ networking, auto-scaling compute, and isolated databases
+2. **Application Excellence** — Spring Boot service with layered architecture, security-first design, and testability
+3. **Runtime Orchestration** — Kubernetes on EKS with separate Helm charts for cleaner ownership and scaling
+4. **Delivery Automation** — Jenkins with dynamic agents spawning pods on demand, no idle infrastructure waste
 
 ---
 
-## Application Design
+## 📚 What's Inside
 
-The application is a Spring Boot document-management API with authentication, user lifecycle, and document ingestion/download capability.
+| Folder | Purpose | Documentation |
+|--------|---------|-----------------|
+| `terraform/` | Infrastructure-as-Code for AWS | [Full Terraform Guide](terraform/README.md) |
+| `applications/` | Spring Boot Document Management Service | [Full Application Guide](applications/README.md) |
+| `k8s/` | EKS Helm charts and deployment scripts | [Full Kubernetes Guide](k8s/README.md) |
+| `jenkins/` | Dynamic Jenkins CI/CD runtime | [Full Delivery Guide](jenkins/README.md) |
 
-Open full design: [applications/README.md](applications/README.md)
+---
 
-```mermaid
-flowchart LR
-  C[Client] --> AUTH[AuthController]
-  C --> DOC[DocumentController]
-  C --> USER[UserController]
+## 🚀 Getting Started
 
-  AUTH --> AS[AuthService]
-  USER --> US[UserService]
-  DOC --> DS[DocumentService]
+### Prerequisites
+- AWS Account with sufficient permissions
+- Terraform >= 1.9
+- Helm >= 3.0
+- kubectl configured
+- Docker (for local builds)
 
-  AS --> JWT[JwtService]
-  AS --> REPOU[AppUserRepository]
-  US --> REPOU
-  DS --> REPOD[DocumentRepository]
-  DS --> REPOU
+### Quick Deploy
 
-  REPOU --> DB[(MySQL)]
-  REPOD --> DB
+```bash
+# 1. Provision infrastructure
+cd terraform/bootstrap
+terraform init && terraform apply
+
+cd ../
+terraform init && terraform apply
+
+# 2. Deploy application and Jenkins
+cd ../k8s
+./scripts/deploy-all.sh
+
+# 3. Verify
+kubectl get all -n dms
+kubectl get all -n jenkins
 ```
 
 ---
 
-## Kubernetes Runtime
+## 🏛️ Repository Structure
 
-The EKS runtime is split into two Helm concerns for scale and ownership clarity.
-
-Open full runtime guide: [k8s/README.md](k8s/README.md)
-
-```mermaid
-flowchart LR
-  H1[Helm Chart: document-management-service] --> D[Deployment replicas=2]
-  H1 --> SVC[ClusterIP Service]
-
-  H2[Helm Chart: document-management-alb] --> ING[Ingress with AWS ALB annotations]
-
-  ING --> SVC
-  SVC --> POD1[Pod 1]
-  SVC --> POD2[Pod 2]
+```
+.
+├── README.md                          # This file — architecture portal
+├── terraform/                         # Infrastructure Code
+│   ├── README.md                     # Complete networking + security design
+│   ├── bootstrap/                    # State bucket initialization
+│   ├── modules/                      # VPC, EKS, RDS modules
+│   └── versions.tf, variables.tf, ...
+├── applications/                      # Business Services
+│   ├── README.md                     # Application architecture + APIs
+│   └── document-management-service/  # Spring Boot service
+│       ├── src/main/java/...        # Source code
+│       ├── pom.xml                   # Maven dependencies
+│       └── src/test/java/...        # 41 unit tests
+├── k8s/                              # Kubernetes Runtime
+│   ├── README.md                     # Helm deployment model
+│   ├── eks/                          # Application charts
+│   │   ├── document-management-service/
+│   │   └── document-management-alb/
+│   ├── jenkins/                      # Dynamic Jenkins chart
+│   │   └── dynamic-jenkins/
+│   └── scripts/                      # Deployment automation
+└── jenkins/                           # CI/CD Documentation
+    └── README.md                      # Jenkins agent patterns
 ```
 
 ---
 
-## Delivery Platform (Jenkins)
+## 🎓 Learning Path
 
-Jenkins is deployed through a dedicated Helm chart and configured to run builds on dynamic Kubernetes agents.
+**For Infrastructure Engineers:**
+→ Start with [terraform/README.md](terraform/README.md)
+- Network topology, security groups, multi-AZ design
+- EKS self-managed nodes, IAM IRSA patterns
+- Remote Terraform state with locking
 
-Open full delivery guide: [jenkins/README.md](jenkins/README.md)
+**For Application Developers:**
+→ Start with [applications/README.md](applications/README.md)
+- Service domain model and API contracts
+- Authentication, authorization, validation
+- Testing strategy with 41 unit tests per service
 
-```mermaid
-sequenceDiagram
-  participant Dev as Developer
-  participant J as Jenkins Controller
-  participant K as Kubernetes Cloud Plugin
-  participant A as Dynamic Agent Pod
+**For Platform/DevOps Engineers:**
+→ Start with [k8s/README.md](k8s/README.md)
+- Kubernetes cluster topology
+- Helm chart separation patterns (app vs. ingress)
+- Multi-environment deployment
 
-  Dev->>J: Trigger pipeline
-  J->>K: Request agent for label
-  K->>A: Create agent pod on demand
-  A-->>J: Connect via JNLP
-  A->>A: Execute build/test/deploy stage
-  A-->>K: Complete and terminate
-```
+**For CI/CD Specialists:**
+→ Start with [jenkins/README.md](jenkins/README.md)
+- Dynamic agent pod provisioning
+- Stateless controller design
+- Pipeline patterns on Kubernetes
 
 ---
 
-## Growth Model
+## 📊 Key Metrics
 
-This documentation is intentionally structured to grow:
+| Aspect | Value | Notes |
+|--------|-------|-------|
+| **Network Layers** | 3 (public, private-app, private-db) | Segmented by tier and security boundary |
+| **Availability Zones** | 3 (eu-west-1a/b/c) | Multi-AZ redundancy |
+| **EKS Node Groups** | 3 (api, worker, batch) | Workload-specific labeling |
+| **App Replicas** | 2 | Kubernetes deployment |
+| **Unit Tests** | 41 | Comprehensive service coverage |
+| **Helm Charts** | 3 | App, ALB, Jenkins |
 
-1. Add a new architecture card in one line at the top table.
-2. Add a new section in this README and link to its folder README.
-3. Keep detailed implementation in folder-level READMEs.
+---
 
-For reviewers and architects, this root file should remain the main entry point.
+## 🔐 Security First
+
+- **Network segmentation** — Public ALB → private compute → isolated database
+- **Security Groups** — SG-to-SG rules (no open CIDR)
+- **JWT authentication** — Stateless token-based auth
+- **IAM IRSA** — Pod identity with fine-grained AWS permissions
+- **Encrypted state** — Terraform state in S3 with DynamoDB locking
+- **No secrets in code** — Environment variables and AWS Secrets Manager
+
+---
+
+## 💰 Cost Optimization
+
+Free tier friendly with optional cost reductions:
+
+- EKS control plane: **$0.10/hr** (not free tier)
+- EC2 nodes: t3.micro × 3 (750 hrs/month included in free tier)
+- RDS: db.t3.micro, 20 GiB (covered by free tier)
+- NAT Gateway: **$0.045/hr** (optional: use `single_nat_gateway = true` for dev)
+
+---
+
+## 📖 Next Steps
+
+1. **Understand the architecture** — Read the 4 detailed guides (one per box above)
+2. **Provision infrastructure** — Follow the Terraform deployment guide
+3. **Deploy the application** — Use the Kubernetes scripts
+4. **Run the CI/CD** — Trigger a Jenkins pipeline
+5. **Extend and own** — Modify for your use case
+
+---
+
+## 🤝 Contributing & Support
+
+This is a reference architecture. Feel free to adapt for your needs:
+- Add additional services in `applications/`
+- Extend Helm charts for multi-environment (dev/stage/prod)
+- Integrate with your existing CI/CD system
+- Scale infrastructure using Terraform variables
+
+---
+
+## 📝 License
+
+Architecture and patterns by Arunasalam Govindasamy, 2026.
+Use freely for learning and reference implementations.
