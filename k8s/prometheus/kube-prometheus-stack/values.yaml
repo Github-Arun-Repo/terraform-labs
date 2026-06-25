@@ -1,0 +1,276 @@
+# ============================================================
+# kube-prometheus-stack values
+#
+# Namespace : monitoring
+# Grafana   : DISABLED – deployed separately in k8s/grafana
+# Node Exporter  : enabled  → scrapes node/CPU metrics
+# kube-state-metrics : enabled → scrapes pod/deployment health
+# Alertmanager   : enabled
+# Prometheus retention: 15 days, 20 Gi gp3 PVC
+# ============================================================
+
+kube-prometheus-stack:
+
+  # --------------------------------------------------------------------------
+  # Grafana – disabled; Grafana is deployed as its own chart (k8s/grafana)
+  # --------------------------------------------------------------------------
+  grafana:
+    enabled: false
+
+  # --------------------------------------------------------------------------
+  # Prometheus Operator
+  # --------------------------------------------------------------------------
+  prometheusOperator:
+    enabled: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+  # --------------------------------------------------------------------------
+  # Prometheus
+  # --------------------------------------------------------------------------
+  prometheus:
+    prometheusSpec:
+      # Scrape interval applied globally
+      scrapeInterval: "30s"
+      evaluationInterval: "30s"
+
+      # Retention
+      retention: "15d"
+      retentionSize: "18GB"
+
+      # Persistent storage – gp3 StorageClass must exist on the cluster
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp3
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 20Gi
+
+      # Allow Prometheus to discover ServiceMonitors in all namespaces
+      serviceMonitorSelectorNilUsesHelmValues: false
+      serviceMonitorSelector: {}
+      serviceMonitorNamespaceSelector: {}
+
+      # Allow PodMonitor discovery across all namespaces
+      podMonitorSelectorNilUsesHelmValues: false
+      podMonitorSelector: {}
+      podMonitorNamespaceSelector: {}
+
+      # Allow PrometheusRule discovery across all namespaces
+      ruleSelectorNilUsesHelmValues: false
+      ruleSelector: {}
+      ruleNamespaceSelector: {}
+
+      resources:
+        requests:
+          cpu: 200m
+          memory: 512Mi
+        limits:
+          cpu: 500m
+          memory: 1Gi
+
+  # --------------------------------------------------------------------------
+  # Alertmanager
+  # --------------------------------------------------------------------------
+  alertmanager:
+    alertmanagerSpec:
+      storage:
+        volumeClaimTemplate:
+          spec:
+            storageClassName: gp3
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 5Gi
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+
+  # --------------------------------------------------------------------------
+  # Node Exporter – collects per-node CPU, memory, disk, network metrics
+  # key metrics: node_cpu_seconds_total, node_load*, node_memory_*, node_filesystem_*
+  # --------------------------------------------------------------------------
+  nodeExporter:
+    enabled: true
+
+  prometheus-node-exporter:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  # --------------------------------------------------------------------------
+  # kube-state-metrics – collects pod / deployment / node health metrics
+  # key metrics: kube_pod_status_phase, kube_pod_container_status_ready,
+  #              kube_pod_container_status_restarts_total,
+  #              kube_deployment_status_replicas_available
+  # --------------------------------------------------------------------------
+  kubeStateMetrics:
+    enabled: true
+
+  kube-state-metrics:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  # --------------------------------------------------------------------------
+  # Default alerting rules (built-in)
+  # Covers: node CPU saturation, pod failures, container restarts, etc.
+  # --------------------------------------------------------------------------
+  defaultRules:
+    create: true
+    rules:
+      alertmanager: true
+      etcd: false          # not exposed on managed EKS
+      configReloaders: true
+      general: true
+      k8sContainerCpuUsageSecondsTotal: true
+      k8sContainerMemoryCache: true
+      k8sContainerMemoryRss: true
+      k8sContainerMemorySwap: true
+      k8sContainerResource: true
+      k8sPodOwner: true
+      kubeApiserverAvailability: false  # managed by AWS on EKS
+      kubeApiserverBurnrate: false
+      kubeApiserverHistogram: false
+      kubeApiserverSlos: false
+      kubeControllerManager: false      # not exposed on managed EKS
+      kubelet: true
+      kubeProxy: false                  # not exposed on managed EKS
+      kubePrometheusGeneral: true
+      kubePrometheusNodeRecording: true
+      kubernetesApps: true
+      kubernetesResources: true
+      kubernetesStorage: true
+      kubernetesSystem: true
+      kubeSchedulerAlerting: false      # not exposed on managed EKS
+      kubeSchedulerRecording: false
+      kubeStateMetrics: true
+      network: true
+      node: true
+      nodeExporterAlerting: true
+      nodeExporterRecording: true
+      prometheus: true
+      prometheusOperator: true
+
+  # --------------------------------------------------------------------------
+  # Additional custom alerting rules
+  # --------------------------------------------------------------------------
+  additionalPrometheusRulesMap:
+    terraform-labs-node-cpu:
+      groups:
+        - name: node-cpu-alerts
+          rules:
+            # Fire when average node CPU usage (non-idle) exceeds 85% for 5 min
+            - alert: NodeCPUHighUsage
+              expr: |
+                (
+                  1 - avg by(instance) (
+                    rate(node_cpu_seconds_total{mode="idle"}[5m])
+                  )
+                ) > 0.85
+              for: 5m
+              labels:
+                severity: warning
+              annotations:
+                summary: "High CPU usage on {{ $labels.instance }}"
+                description: >
+                  Node {{ $labels.instance }} CPU usage is above 85%
+                  (current value: {{ $value | humanizePercentage }}).
+
+            # Fire when 1-minute load average exceeds the number of CPU cores
+            - alert: NodeHighLoadAverage
+              expr: |
+                node_load1
+                  > on(instance) count by(instance)(node_cpu_seconds_total{mode="idle"})
+              for: 5m
+              labels:
+                severity: warning
+              annotations:
+                summary: "High load average on {{ $labels.instance }}"
+                description: >
+                  1-minute load average on {{ $labels.instance }} exceeds the
+                  available CPU count (current: {{ $value }}).
+
+    terraform-labs-pod-health:
+      groups:
+        - name: pod-health-alerts
+          rules:
+            # Pod stuck in non-Running phase for more than 5 minutes
+            - alert: PodNotRunning
+              expr: |
+                kube_pod_status_phase{phase!~"Running|Succeeded"} == 1
+              for: 5m
+              labels:
+                severity: warning
+              annotations:
+                summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} not running"
+                description: >
+                  Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has
+                  been in phase {{ $labels.phase }} for more than 5 minutes.
+
+            # Container not ready for more than 5 minutes
+            - alert: ContainerNotReady
+              expr: |
+                kube_pod_container_status_ready == 0
+              for: 5m
+              labels:
+                severity: warning
+              annotations:
+                summary: >
+                  Container {{ $labels.container }} in pod
+                  {{ $labels.namespace }}/{{ $labels.pod }} not ready
+                description: >
+                  Container {{ $labels.container }} in pod {{ $labels.pod }}
+                  (namespace {{ $labels.namespace }}) has not been ready for
+                  more than 5 minutes.
+
+            # High container restart rate
+            - alert: ContainerHighRestartRate
+              expr: |
+                rate(kube_pod_container_status_restarts_total[15m]) * 60 > 1
+              for: 5m
+              labels:
+                severity: warning
+              annotations:
+                summary: >
+                  Container {{ $labels.container }} restarting frequently in
+                  {{ $labels.namespace }}/{{ $labels.pod }}
+                description: >
+                  Container {{ $labels.container }} has restarted more than
+                  once per minute over the past 15 minutes.
+
+            # Deployment has unavailable replicas
+            - alert: DeploymentReplicasUnavailable
+              expr: |
+                kube_deployment_status_replicas_unavailable > 0
+              for: 5m
+              labels:
+                severity: warning
+              annotations:
+                summary: >
+                  Deployment {{ $labels.namespace }}/{{ $labels.deployment }}
+                  has unavailable replicas
+                description: >
+                  Deployment {{ $labels.deployment }} in namespace
+                  {{ $labels.namespace }} has {{ $value }} unavailable replicas.

@@ -97,6 +97,38 @@ variable "ecr_max_image_count" {
   default     = 30
 }
 
+# -- S3 (Document Inventory) ---------------------------------------------------
+
+variable "documents_inventory_bucket_name" {
+  description = "Name of the S3 bucket used by the document processing application."
+  type        = string
+  default     = "documents-inventory-s3"
+}
+
+variable "documents_inventory_bucket_force_delete" {
+  description = "Allow bucket deletion when objects exist. Keep false for non-disposable environments."
+  type        = bool
+  default     = false
+}
+
+variable "documents_inventory_bucket_enable_versioning" {
+  description = "Enable versioning on the document inventory S3 bucket."
+  type        = bool
+  default     = true
+}
+
+variable "documents_inventory_kms_alias_name" {
+  description = "Alias for the KMS key used by the document inventory S3 bucket."
+  type        = string
+  default     = "alias/documents-inventory-s3"
+}
+
+variable "documents_inventory_kms_key_description" {
+  description = "Description for the KMS key used to encrypt the document inventory S3 bucket."
+  type        = string
+  default     = "KMS key for documents-inventory-s3 bucket encryption"
+}
+
 # -- RDS -----------------------------------------------------------------------
 
 variable "db_identifier" {

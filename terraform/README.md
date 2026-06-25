@@ -160,7 +160,7 @@ sequenceDiagram
 terraform/
 ├── backend.tf              # S3 + DynamoDB remote state backend
 ├── versions.tf             # AWS provider ~> 5.0, Terraform >= 1.9
-├── main.tf                 # Root caller — ALB SG, VPC, RDS, EKS modules
+├── main.tf                 # Root caller — ALB SG, VPC, EKS, ECR, S3(KMS), RDS modules
 ├── variables.tf            # All input variables
 ├── outputs.tf              # Key resource IDs and endpoints
 ├── terraform.tfvars        # Environment values
@@ -184,6 +184,11 @@ terraform/
 	│   └── outputs.tf
 	│
 	└── rds/                # RDS MySQL, SG, parameter group, DB subnet group
+		├── main.tf
+		├── variables.tf
+		└── outputs.tf
+	│
+	└── s3/                 # Document bucket with KMS key, public access blocked, SSE-KMS default encryption
 		├── main.tf
 		├── variables.tf
 		└── outputs.tf

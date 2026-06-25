@@ -57,6 +57,28 @@ output "ecr_repository_url" {
   value       = module.ecr.repository_url
 }
 
+# -- S3 Outputs ----------------------------------------------------------------
+
+output "documents_inventory_bucket_name" {
+  description = "Name of the S3 bucket used by the document processing application."
+  value       = module.documents_inventory_s3.bucket_name
+}
+
+output "documents_inventory_bucket_arn" {
+  description = "ARN of the S3 bucket used by the document processing application."
+  value       = module.documents_inventory_s3.bucket_arn
+}
+
+output "documents_inventory_kms_key_arn" {
+  description = "ARN of the KMS key used to encrypt the document inventory S3 bucket."
+  value       = module.documents_inventory_s3.kms_key_arn
+}
+
+output "documents_inventory_kms_key_alias" {
+  description = "Alias of the KMS key used to encrypt the document inventory S3 bucket."
+  value       = module.documents_inventory_s3.kms_key_alias
+}
+
 # -- RDS Outputs ---------------------------------------------------------------
 
 output "db_endpoint" {

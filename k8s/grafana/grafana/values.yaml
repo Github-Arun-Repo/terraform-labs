@@ -1,0 +1,155 @@
+# ============================================================
+# Grafana values
+#
+# Namespace  : monitoring   (same as Prometheus)
+# Admin creds: read from grafana-admin-credentials k8s Secret
+# Datasource : Prometheus at kube-prometheus-stack service (monitoring ns)
+# Dashboards : community dashboards auto-provisioned via sidecar
+#   1860  – Node Exporter Full       (node / CPU metrics)
+#   7249  – Kubernetes Cluster Overview
+#   6417  – Kubernetes Pod & Container Overview
+#   8588  – Kubernetes Deployment StatefulSet
+# Persistence: 10 Gi gp3 PVC
+# ============================================================
+
+grafana:
+
+  # --------------------------------------------------------------------------
+  # Admin credentials – sourced from a pre-existing Kubernetes Secret.
+  # Create the secret before deploying:
+  #   kubectl create secret generic grafana-admin-credentials \
+  #     --from-literal=admin-user=admin \
+  #     --from-literal=admin-password=<your-password> \
+  #     -n monitoring
+  # --------------------------------------------------------------------------
+  admin:
+    existingSecret: grafana-admin-credentials
+    userKey: admin-user
+    passwordKey: admin-password
+
+  # --------------------------------------------------------------------------
+  # Persistence
+  # --------------------------------------------------------------------------
+  persistence:
+    enabled: true
+    storageClassName: gp3
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+
+  # --------------------------------------------------------------------------
+  # Service
+  # --------------------------------------------------------------------------
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 3000
+
+  # --------------------------------------------------------------------------
+  # Resources
+  # --------------------------------------------------------------------------
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+
+  # --------------------------------------------------------------------------
+  # Datasources – points to kube-prometheus-stack Prometheus service
+  # The service name follows the pattern:
+  #   <release-name>-kube-prometheus-stack-prometheus.<namespace>.svc
+  # Release name used in deploy-prometheus.sh is "prometheus"
+  # --------------------------------------------------------------------------
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          uid: prometheus
+          url: http://prometheus-kube-prometheus-stack-prometheus.monitoring.svc:9090
+          access: proxy
+          isDefault: true
+          jsonData:
+            timeInterval: "30s"
+
+  # --------------------------------------------------------------------------
+  # Dashboard provisioner
+  # --------------------------------------------------------------------------
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: "Kubernetes"
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+
+  # --------------------------------------------------------------------------
+  # Community dashboards (downloaded at startup by the Grafana init container)
+  # --------------------------------------------------------------------------
+  dashboards:
+    default:
+      # Node Exporter Full – CPU usage, load average, memory, disk, network per node
+      node-exporter-full:
+        gnetId: 1860
+        revision: 37
+        datasource: Prometheus
+
+      # Kubernetes Cluster Overview – cluster-wide pod count, CPU/memory usage
+      kubernetes-cluster-overview:
+        gnetId: 7249
+        revision: 1
+        datasource: Prometheus
+
+      # Kubernetes Pod & Container Overview – per-pod CPU, memory, restarts
+      kubernetes-pod-container:
+        gnetId: 6417
+        revision: 1
+        datasource: Prometheus
+
+      # Kubernetes Deployment StatefulSet – rollout health, available replicas
+      kubernetes-deployment:
+        gnetId: 8588
+        revision: 1
+        datasource: Prometheus
+
+  # --------------------------------------------------------------------------
+  # Sidecar – enables automatic discovery of dashboards stored in ConfigMaps
+  # (useful for application teams that ship their own dashboards as ConfigMaps
+  # labelled grafana_dashboard=1)
+  # --------------------------------------------------------------------------
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+      label: grafana_datasource
+      labelValue: "1"
+      searchNamespace: ALL
+
+  # --------------------------------------------------------------------------
+  # Grafana.ini overrides
+  # --------------------------------------------------------------------------
+  grafana.ini:
+    server:
+      root_url: "%(protocol)s://%(domain)s/"
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+    log:
+      level: warn
+    paths:
+      data: /var/lib/grafana/
+      logs: /var/log/grafana
+      plugins: /var/lib/grafana/plugins
+      provisioning: /etc/grafana/provisioning

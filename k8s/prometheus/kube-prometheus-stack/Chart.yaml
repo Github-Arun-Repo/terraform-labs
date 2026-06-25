@@ -1,0 +1,16 @@
+apiVersion: v2
+name: kube-prometheus-stack
+description: >
+  Wrapper chart that deploys the full Prometheus monitoring stack into the EKS
+  cluster using the prometheus-community/kube-prometheus-stack chart.
+  Includes: Prometheus Operator, Prometheus, Alertmanager, Node Exporter
+  (node/CPU metrics), and kube-state-metrics (pod health metrics).
+  Grafana is disabled here and deployed separately via k8s/grafana.
+type: application
+version: 0.1.0
+appVersion: "65.1.1"
+
+dependencies:
+  - name: kube-prometheus-stack
+    version: ">=65.0.0 <66.0.0"
+    repository: https://prometheus-community.github.io/helm-charts

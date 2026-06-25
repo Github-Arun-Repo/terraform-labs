@@ -50,6 +50,14 @@ ecr_image_scan_on_push     = true
 ecr_force_delete           = false
 ecr_max_image_count        = 30
 
+# -- S3 (Document Inventory) ---------------------------------------------------
+
+documents_inventory_bucket_name              = "documents-inventory-s3"
+documents_inventory_bucket_force_delete      = false
+documents_inventory_bucket_enable_versioning = true
+documents_inventory_kms_alias_name           = "alias/documents-inventory-s3"
+documents_inventory_kms_key_description      = "KMS key for documents-inventory-s3 bucket encryption"
+
 # -- RDS (free tier) -----------------------------------------------------------
 
 db_identifier             = "my-app-db"

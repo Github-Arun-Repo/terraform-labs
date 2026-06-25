@@ -17,12 +17,19 @@ cd "${ROOT_DIR}"
 ./k8s/scripts/deploy-argocd.sh
 ./k8s/scripts/deploy-alb.sh
 
+# Observability stack: Prometheus (Node Exporter, kube-state-metrics) + Grafana
+./k8s/scripts/deploy-prometheus.sh
+./k8s/scripts/deploy-grafana.sh
+
 # DMS is no longer deployed by this script.
 # ArgoCD manages the DMS deployment via the Application manifest:
 #   kubectl apply -f cicd/argocd/dms-application.yaml
 # ArgoCD will sync the Helm chart at k8s/eks/document-management-service
 # automatically whenever the image.tag in values.yaml changes.
 
-echo "Deployment complete: ALB controller, Jenkins, and ArgoCD are installed."
-echo "Apply the DMS ArgoCD Application to start GitOps deployments:"
+echo "Deployment complete: ALB controller, Jenkins, ArgoCD, and observability stack are installed."
+echo ""
+echo "Apply ArgoCD Application manifests to hand over GitOps control:"
 echo "  kubectl apply -f cicd/argocd/dms-application.yaml"
+echo "  kubectl apply -f cicd/argocd/prometheus-application.yaml"
+echo "  kubectl apply -f cicd/argocd/grafana-application.yaml"

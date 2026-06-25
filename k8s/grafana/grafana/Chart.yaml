@@ -1,0 +1,15 @@
+apiVersion: v2
+name: grafana
+description: >
+  Wrapper chart that deploys Grafana into the EKS cluster using the
+  official grafana/grafana Helm chart.  Pre-configured with a Prometheus
+  datasource (kube-prometheus-stack in the monitoring namespace) and
+  community dashboards for node/CPU metrics and pod health.
+type: application
+version: 0.1.0
+appVersion: "11.6.0"
+
+dependencies:
+  - name: grafana
+    version: ">=8.0.0 <9.0.0"
+    repository: https://grafana.github.io/helm-charts

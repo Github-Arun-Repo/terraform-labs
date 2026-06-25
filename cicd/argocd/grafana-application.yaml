@@ -1,0 +1,65 @@
+# ArgoCD Application – Grafana
+#
+# Deploys Grafana into the `monitoring` namespace with:
+#   - Prometheus datasource (kube-prometheus-stack in the same namespace)
+#   - Pre-provisioned community dashboards:
+#       1860 – Node Exporter Full          (node / CPU metrics)
+#       7249 – Kubernetes Cluster Overview
+#       6417 – Kubernetes Pod & Container Overview
+#       8588 – Kubernetes Deployment StatefulSet
+#   - Dashboard sidecar that auto-discovers ConfigMaps labelled
+#     grafana_dashboard=1 across all namespaces
+#
+# How to apply:
+#   kubectl apply -f cicd/argocd/grafana-application.yaml
+#
+# Prerequisites:
+#   1. ArgoCD is installed in the cluster (see k8s/argocd/argocd/).
+#   2. Prometheus is already running (apply prometheus-application.yaml first).
+#   3. A gp3 StorageClass must exist in the cluster (used for Grafana PVC).
+#   4. Create the admin credentials secret before ArgoCD syncs Grafana:
+#        kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+#        kubectl create secret generic grafana-admin-credentials \
+#          --from-literal=admin-user=admin \
+#          --from-literal=admin-password=<your-password> \
+#          -n monitoring
+#   5. If the repository is private, register it in ArgoCD first:
+#        argocd repo add https://github.com/your-org/terraform-labs.git \
+#          --username <user> --password <token>
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grafana
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: terraform-labs
+    app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/component: observability
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    # ---------------------------------------------------------------------------
+    # Update repoURL to your actual repository before applying this manifest.
+    # ---------------------------------------------------------------------------
+    repoURL: https://github.com/your-org/terraform-labs.git
+    targetRevision: main
+    path: k8s/grafana/grafana
+
+    helm:
+      valueFiles:
+        - values.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

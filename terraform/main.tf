@@ -126,6 +126,20 @@ module "ecr" {
   tags = var.default_tags
 }
 
+# -- S3 Module (Document Inventory) -------------------------------------------
+
+module "documents_inventory_s3" {
+  source = "./modules/s3"
+
+  bucket_name         = var.documents_inventory_bucket_name
+  force_destroy       = var.documents_inventory_bucket_force_delete
+  enable_versioning   = var.documents_inventory_bucket_enable_versioning
+  kms_alias_name      = var.documents_inventory_kms_alias_name
+  kms_key_description = var.documents_inventory_kms_key_description
+
+  tags = var.default_tags
+}
+
 # Allow EKS nodes to reach RDS - node SG gets the DB port opened
 resource "aws_vpc_security_group_ingress_rule" "rds_from_eks_nodes" {
   security_group_id            = module.rds.rds_security_group_id

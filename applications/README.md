@@ -2,9 +2,11 @@
 
 This folder contains the business application layer for Terraform Labs.
 
-Current service:
+Current services:
 
 - [applications/document-management-service](applications/document-management-service)
+- [applications/document-processor](applications/document-processor)
+- [applications/invoice-upload-service](applications/invoice-upload-service)
 
 ---
 
