@@ -32,9 +32,9 @@ Explore four core domains of this architecture. **Click any box below to dive in
     </td>
     <td align="center" width="25%">
       <h3>🚀 Delivery</h3>
-      <p>Jenkins, Dynamic Agents, Pipelines</p>
-      <p><strong><a href="jenkins/README.md">→ View Full Guide</a></strong></p>
-      <p style="font-size: 0.9em;">CI/CD patterns, on-demand agent pods, build model</p>
+      <p>Jenkins CI, ArgoCD GitOps, Pipelines</p>
+      <p><strong><a href="cicd/README.md">→ View Full Guide</a></strong></p>
+      <p style="font-size: 0.9em;">CI/CD separation, dynamic agents, GitOps deployments</p>
     </td>
   </tr>
 </table>
@@ -52,8 +52,9 @@ graph TB
     
     subgraph EKS_Interior["Inside EKS"]
         Apps["📱 App Pods (replicas=2)"]
-        Jenkins["🚀 Jenkins Controller"]
+        Jenkins["� Jenkins Controller"]
         Agents["⚙️ Dynamic Agent Pods"]
+        ArgoCD["🚀 ArgoCD Controller"]
     end
     
     EKS --> EKS_Interior
@@ -63,8 +64,10 @@ graph TB
     TF -.->|Manages| EKS & ALB & RDS
     
     Git["📦 Git Repository"]
-    Git -.->|Drives| Jenkins
-    Jenkins -.->|Builds & Deploys| Apps
+    Git -.->|CI trigger| Jenkins
+    Jenkins -.->|push image + tag commit| Git
+    Git -.->|GitOps sync| ArgoCD
+    ArgoCD -.->|helm upgrade| Apps
 ```
 
 **Four architectural tiers:**
@@ -72,7 +75,7 @@ graph TB
 1. **Infrastructure Reliability** — Terraform manages multi-AZ networking, auto-scaling compute, and isolated databases
 2. **Application Excellence** — Spring Boot service with layered architecture, security-first design, and testability
 3. **Runtime Orchestration** — Kubernetes on EKS with separate Helm charts for cleaner ownership and scaling
-4. **Delivery Automation** — Jenkins with dynamic agents spawning pods on demand, no idle infrastructure waste
+4. **Delivery Automation** — Jenkins CI for build/test/push, ArgoCD for GitOps deployments — each tool does one job
 
 ---
 
@@ -83,7 +86,7 @@ graph TB
 | `terraform/` | Infrastructure-as-Code for AWS | [Full Terraform Guide](terraform/README.md) |
 | `applications/` | Spring Boot Document Management Service | [Full Application Guide](applications/README.md) |
 | `k8s/` | EKS Helm charts and deployment scripts | [Full Kubernetes Guide](k8s/README.md) |
-| `jenkins/` | Dynamic Jenkins CI/CD runtime | [Full Delivery Guide](jenkins/README.md) |
+| `cicd/` | Jenkins CI pipelines + ArgoCD GitOps manifests | [Full Delivery Guide](cicd/README.md) |
 
 ---
 
@@ -106,13 +109,17 @@ terraform init && terraform apply
 cd ../
 terraform init && terraform apply
 
-# 2. Deploy application and Jenkins
+# 2. Deploy Jenkins, ArgoCD, and the ALB controller
 cd ../k8s
 ./scripts/deploy-all.sh
 
-# 3. Verify
+# 3. Register the DMS application with ArgoCD (GitOps takes over from here)
+kubectl apply -f ../cicd/argocd/dms-application.yaml
+
+# 4. Verify
 kubectl get all -n dms
 kubectl get all -n jenkins
+kubectl get app document-management-service -n argocd
 ```
 
 ---
@@ -138,11 +145,17 @@ kubectl get all -n jenkins
 │   ├── eks/                          # Application charts
 │   │   ├── document-management-service/
 │   │   └── document-management-alb/
-│   ├── jenkins/                      # Dynamic Jenkins chart
+│   ├── jenkins/                      # Dynamic Jenkins controller chart
 │   │   └── dynamic-jenkins/
+│   ├── argocd/                       # ArgoCD installation chart
+│   │   └── argocd/
 │   └── scripts/                      # Deployment automation
-└── jenkins/                           # CI/CD Documentation
-    └── README.md                      # Jenkins agent patterns
+└── cicd/                              # CI/CD Pipelines & GitOps
+    ├── README.md                      # Full CI/CD platform guide
+    ├── jenkins/
+    │   └── dms-ci.Jenkinsfile         # CI pipeline (build, test, push, tag commit)
+    └── argocd/
+        └── dms-application.yaml       # ArgoCD Application — GitOps deployment
 ```
 
 ---
@@ -168,10 +181,10 @@ kubectl get all -n jenkins
 - Multi-environment deployment
 
 **For CI/CD Specialists:**
-→ Start with [jenkins/README.md](jenkins/README.md)
-- Dynamic agent pod provisioning
-- Stateless controller design
-- Pipeline patterns on Kubernetes
+→ Start with [cicd/README.md](cicd/README.md)
+- Jenkins CI: build, test, push image, GitOps write-back
+- ArgoCD: automated GitOps deployments from Git
+- Dynamic agent pod provisioning and IRSA
 
 ---
 
@@ -184,7 +197,7 @@ kubectl get all -n jenkins
 | **EKS Node Groups** | 3 (api, worker, batch) | Workload-specific labeling |
 | **App Replicas** | 2 | Kubernetes deployment |
 | **Unit Tests** | 41 | Comprehensive service coverage |
-| **Helm Charts** | 3 | App, ALB, Jenkins |
+| **Helm Charts** | 4 | App, ALB, Jenkins, ArgoCD |
 
 ---
 
@@ -215,8 +228,9 @@ Free tier friendly with optional cost reductions:
 1. **Understand the architecture** — Read the 4 detailed guides (one per box above)
 2. **Provision infrastructure** — Follow the Terraform deployment guide
 3. **Deploy the application** — Use the Kubernetes scripts
-4. **Run the CI/CD** — Trigger a Jenkins pipeline
-5. **Extend and own** — Modify for your use case
+4. **Run CI** — Trigger the Jenkins `dms-build` pipeline
+5. **Watch CD** — ArgoCD detects the tag commit and deploys automatically
+6. **Extend and own** — Modify for your use case
 
 ---
 

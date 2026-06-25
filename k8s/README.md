@@ -107,6 +107,7 @@ sequenceDiagram
 2. Keep application and ingress Helm values versioned per environment.
 3. Keep Jenkins in a separate namespace for operational isolation.
 4. Use chart value overlays for dev/stage/prod growth.
+5. For `k8s/jenkins/dynamic-jenkins`, do not commit downloaded dependency archives under `charts/`; `deploy-jenkins.sh` runs `helm dependency update` to fetch the pinned dependency from `https://charts.jenkins.io`.
 
 ---
 

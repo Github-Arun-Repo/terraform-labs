@@ -40,3 +40,13 @@ output "autoscaling_group_names" {
   value       = { for k, v in aws_autoscaling_group.node_group : k => v.name }
 }
 
+output "oidc_provider_arn" {
+  description = "ARN of the IAM OIDC provider for this EKS cluster. Used to create IRSA trust policies."
+  value       = aws_iam_openid_connect_provider.eks.arn
+}
+
+output "oidc_issuer_url" {
+  description = "HTTPS OIDC issuer URL for this EKS cluster (without trailing slash)."
+  value       = aws_eks_cluster.this.identity[0].oidc[0].issuer
+}
+

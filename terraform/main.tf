@@ -112,6 +112,20 @@ module "eks" {
   tags = var.default_tags
 }
 
+# -- ECR Module ----------------------------------------------------------------
+
+module "ecr" {
+  source = "./modules/ecr"
+
+  repository_name      = var.ecr_repository_name
+  image_tag_mutability = var.ecr_image_tag_mutability
+  image_scan_on_push   = var.ecr_image_scan_on_push
+  force_delete         = var.ecr_force_delete
+  max_image_count      = var.ecr_max_image_count
+
+  tags = var.default_tags
+}
+
 # Allow EKS nodes to reach RDS - node SG gets the DB port opened
 resource "aws_vpc_security_group_ingress_rule" "rds_from_eks_nodes" {
   security_group_id            = module.rds.rds_security_group_id
@@ -146,3 +160,85 @@ module "rds" {
   tags = var.default_tags
 }
 
+# -- IRSA: Jenkins Build Agent → ECR Push -------------------------------------
+# The Jenkins build agent pods assume this role via the Kubernetes service
+# account annotation instead of using static AWS credentials.
+
+locals {
+  jenkins_sa_namespace = "jenkins"
+  jenkins_sa_name      = "jenkins-build-agent"
+  # Strip the https:// scheme – AWS condition keys use the bare host/path form
+  oidc_issuer_host = trimprefix(module.eks.oidc_issuer_url, "https://")
+}
+
+data "aws_iam_policy_document" "jenkins_agent_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [module.eks.oidc_provider_arn]
+    }
+
+    # Restrict to the exact Kubernetes service account
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_host}:sub"
+      values   = ["system:serviceaccount:${local.jenkins_sa_namespace}:${local.jenkins_sa_name}"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_host}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "jenkins_build_agent" {
+  name_prefix        = "jenkins-build-agent-"
+  assume_role_policy = data.aws_iam_policy_document.jenkins_agent_assume_role.json
+
+  tags = merge(var.default_tags, { Name = "jenkins-build-agent-irsa" })
+}
+
+data "aws_iam_policy_document" "ecr_push" {
+  # GetAuthorizationToken has no resource ARN – it must be on "*"
+  statement {
+    effect    = "Allow"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  # All other ECR push/pull actions are scoped to the single DMS repository
+  statement {
+    effect = "Allow"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:CompleteLayerUpload",
+      "ecr:InitiateLayerUpload",
+      "ecr:PutImage",
+      "ecr:UploadLayerPart",
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:DescribeImages",
+      "ecr:DescribeRepositories",
+      "ecr:ListImages",
+    ]
+    resources = [module.ecr.repository_arn]
+  }
+}
+
+resource "aws_iam_policy" "ecr_push" {
+  name_prefix = "jenkins-ecr-push-"
+  description = "Allows the Jenkins build-agent IRSA role to push images to the DMS ECR repository."
+  policy      = data.aws_iam_policy_document.ecr_push.json
+
+  tags = merge(var.default_tags, { Name = "jenkins-ecr-push-policy" })
+}
+
+resource "aws_iam_role_policy_attachment" "jenkins_agent_ecr_push" {
+  role       = aws_iam_role.jenkins_build_agent.name
+  policy_arn = aws_iam_policy.ecr_push.arn
+}

@@ -1,0 +1,114 @@
+# Values for the ArgoCD wrapper chart.
+# All keys are nested under `argo-cd:` because this chart wraps the official
+# argoproj/argo-cd Helm chart as a dependency.
+#
+# Full reference:
+#   https://github.com/argoproj/argo-helm/blob/main/charts/argo-cd/values.yaml
+
+argo-cd:
+
+  # -- Global settings --------------------------------------------------------
+  global:
+    # Set to your cluster's domain if you expose the server via Ingress
+    domain: argocd.internal.example.com
+
+  # -- ArgoCD server ----------------------------------------------------------
+  server:
+    # Number of replicas – 1 is sufficient for non-HA setups
+    replicas: 1
+
+    # Expose via ClusterIP; access through kubectl port-forward or an Ingress
+    service:
+      type: ClusterIP
+
+    # Insecure mode is safe when TLS is terminated at the ALB/Ingress layer
+    extraArgs:
+      - --insecure
+
+    # --- Ingress (AWS ALB via the AWS Load Balancer Controller) ---------------
+    # Uncomment and fill in the ALB ARN / certificate ARN to expose ArgoCD.
+    #
+    # ingress:
+    #   enabled: true
+    #   ingressClassName: alb
+    #   annotations:
+    #     kubernetes.io/ingress.class: alb
+    #     alb.ingress.kubernetes.io/scheme: internet-facing
+    #     alb.ingress.kubernetes.io/target-type: ip
+    #     alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    #     alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:eu-west-1:ACCOUNT_ID:certificate/CERT_ID"
+    #     alb.ingress.kubernetes.io/ssl-redirect: "443"
+    #   hosts:
+    #     - argocd.your-domain.com
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+  # -- Application controller -------------------------------------------------
+  controller:
+    replicas: 1
+
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 512Mi
+
+  # -- Repo server ------------------------------------------------------------
+  repoServer:
+    replicas: 1
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+
+  # -- Redis (bundled, non-HA) ------------------------------------------------
+  redis:
+    enabled: true
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+
+  # -- Dex (SSO) – disabled unless you configure an OIDC provider ------------
+  dex:
+    enabled: false
+
+  # -- ArgoCD config (argocd-cm ConfigMap) ------------------------------------
+  configs:
+    cm:
+      # Allow admin login with initial password (disable in production; use SSO)
+      admin.enabled: "true"
+      # Applications in any namespace can be managed (useful for multi-tenant)
+      application.resourceTrackingMethod: annotation
+
+    # ArgoCD RBAC – default policy grants admin to the admin user only
+    rbac:
+      policy.default: role:readonly
+      policy.csv: |
+        p, role:admin, applications, *, */*, allow
+        p, role:admin, clusters, get, *, allow
+        p, role:admin, repositories, *, *, allow
+        g, admin, role:admin
+
+  # -- Persistence (ArgoCD is mostly stateless; Redis persists sessions) ------
+  # Redis persistence is handled by the redis sub-chart.
+
+  # -- Notifications (optional) -----------------------------------------------
+  notifications:
+    enabled: false

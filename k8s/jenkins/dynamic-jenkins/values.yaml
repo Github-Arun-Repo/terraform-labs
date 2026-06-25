@@ -14,9 +14,57 @@ jenkins:
       - configuration-as-code:1932.v75cb_b_f1b_698d
       - job-dsl:1.90
       - blueocean:1.27.16
+      - credentials-binding:687.v619cb_15e923f
     JCasC:
       defaultConfig: true
       configScripts:
+        # -----------------------------------------------------------------------
+        # Seed job: auto-creates the DMS build pipeline via Job DSL on first boot.
+        # The Job DSL plugin (job-dsl) is pre-installed above.
+        # Update scm.url to your actual repository URL before deploying.
+        # -----------------------------------------------------------------------
+        dms-seed-job: |
+          jobs:
+            - script: >
+                pipelineJob('dms-build') {
+                  description('Build, test, and deploy the Document Management Service.')
+                  keepDependencies(false)
+                  parameters {
+                    stringParam('AWS_REGION', 'eu-west-1',
+                      'AWS region that hosts the ECR repository and EKS cluster.')
+                    stringParam('ECR_REPOSITORY_URI', '',
+                      'Full ECR URI, e.g. 123456789012.dkr.ecr.eu-west-1.amazonaws.com/document-management-service.')
+                    stringParam('IMAGE_TAG', '',
+                      'Optional explicit image tag. Leave empty to use BUILD_NUMBER-shortSHA.')
+                    choiceParam('IMAGE_BUILDER', ['docker', 'jib'],
+                      'docker uses the Dockerfile; jib is the daemonless Maven fallback.')
+                    stringParam('DEPLOY_NAMESPACE', 'dms',
+                      'Kubernetes namespace for the document service Helm release.')
+                    stringParam('HELM_RELEASE', 'dms-app',
+                      'Helm release name for the document service.')
+                    stringParam('APP_CHART_PATH', 'k8s/eks/document-management-service',
+                      'Path to the document service Helm chart within this repository.')
+                    stringParam('VALUES_FILE', '',
+                      'Optional path to an additional Helm values override file.')
+                    booleanParam('PUSH_LATEST', true,
+                      'Also update the :latest tag in ECR after pushing the build tag.')
+                  }
+                  definition {
+                    cpsScm {
+                      scm {
+                        git {
+                          remote {
+                            url('https://github.com/your-org/terraform-labs.git')
+                          }
+                          branch('*/main')
+                        }
+                      }
+                      scriptPath('cicd/jenkins/dms-ci.Jenkinsfile')
+                      lightweight(true)
+                    }
+                  }
+                  disabled(false)
+                }
         kubernetes-cloud: |
           jenkins:
             clouds:
@@ -30,20 +78,43 @@ jenkins:
                     - name: "maven"
                       namespace: "jenkins"
                       label: "maven"
-                      serviceAccount: "default"
+                      serviceAccount: "jenkins-build-agent"
                       containers:
                         - name: "jnlp"
                           image: "jenkins/inbound-agent:latest-jdk17"
                           alwaysPullImage: false
                           args: "${computer.jnlpmac} ${computer.name}"
                         - name: "maven"
-                          image: "maven:3.9.9-eclipse-temurin-21"
+                          image: "maven:3.9.9-eclipse-temurin-25"
+                          command: "sleep"
+                          args: "99d"
+                        - name: "awscli"
+                          image: "amazon/aws-cli:2.17.46"
                           command: "sleep"
                           args: "99d"
                     - name: "docker"
                       namespace: "jenkins"
                       label: "docker"
-                      serviceAccount: "default"
+                      serviceAccount: "jenkins-build-agent"
+                      yaml: |
+                        apiVersion: v1
+                        kind: Pod
+                        spec:
+                          serviceAccountName: jenkins-build-agent
+                          containers:
+                            - name: docker-dind
+                              image: docker:27-dind
+                              securityContext:
+                                privileged: true
+                              args:
+                                - --host=tcp://127.0.0.1:2375
+                                - --host=unix:///var/run/docker.sock
+                              volumeMounts:
+                                - name: docker-graph-storage
+                                  mountPath: /var/lib/docker
+                          volumes:
+                            - name: docker-graph-storage
+                              emptyDir: {}
                       containers:
                         - name: "jnlp"
                           image: "jenkins/inbound-agent:latest-jdk17"
@@ -51,6 +122,14 @@ jenkins:
                           args: "${computer.jnlpmac} ${computer.name}"
                         - name: "docker"
                           image: "docker:27-cli"
+                          command: "sleep"
+                          args: "99d"
+                        - name: "awscli"
+                          image: "amazon/aws-cli:2.17.46"
+                          command: "sleep"
+                          args: "99d"
+                        - name: "helm"
+                          image: "dtzar/helm-kubectl:3.16.2"
                           command: "sleep"
                           args: "99d"
   agent:
@@ -67,3 +146,18 @@ jenkins:
   serviceAccount:
     create: true
     name: ""
+
+buildAgent:
+  serviceAccount:
+    name: jenkins-build-agent
+    # Set this annotation to the Terraform output `jenkins_build_agent_role_arn`
+    # so the pod can assume the IRSA role and push to ECR without static credentials.
+    # Pass at deploy time:
+    #   helm upgrade --install ... \
+    #     --set buildAgent.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=<ROLE_ARN>
+    # Or populate the value below after running `terraform output jenkins_build_agent_role_arn`.
+    annotations:
+      eks.amazonaws.com/role-arn: ""   # replace with Terraform output: jenkins_build_agent_role_arn
+  clusterRole:
+    create: true
+    name: jenkins-build-deployer

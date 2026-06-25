@@ -40,6 +40,23 @@ output "app_security_group_id" {
   value       = aws_security_group.app.id
 }
 
+# -- ECR Outputs ---------------------------------------------------------------
+
+output "ecr_repository_name" {
+  description = "Name of the ECR repository used for application images."
+  value       = module.ecr.repository_name
+}
+
+output "ecr_repository_arn" {
+  description = "ARN of the ECR repository used for application images."
+  value       = module.ecr.repository_arn
+}
+
+output "ecr_repository_url" {
+  description = "Repository URL used by Jenkins and Helm for image pushes and pulls."
+  value       = module.ecr.repository_url
+}
+
 # -- RDS Outputs ---------------------------------------------------------------
 
 output "db_endpoint" {
@@ -65,6 +82,7 @@ output "db_name" {
 output "rds_security_group_id" {
   description = "ID of the RDS Security Group."
   value       = module.rds.rds_security_group_id
+}
 
 # -- EKS Outputs ---------------------------------------------------------------
 
@@ -92,5 +110,16 @@ output "eks_node_groups" {
   description = "Map of node group name -> ASG name."
   value       = module.eks.autoscaling_group_names
 }
+
+# -- IRSA Outputs --------------------------------------------------------------
+
+output "eks_oidc_provider_arn" {
+  description = "ARN of the EKS OIDC provider. Referenced by all IRSA trust policies."
+  value       = module.eks.oidc_provider_arn
+}
+
+output "jenkins_build_agent_role_arn" {
+  description = "IRSA role ARN to annotate on the jenkins-build-agent Kubernetes ServiceAccount."
+  value       = aws_iam_role.jenkins_build_agent.arn
 }
 

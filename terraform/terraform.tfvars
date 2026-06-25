@@ -42,6 +42,14 @@ default_tags = {
   ManagedBy   = "terraform"
 }
 
+# -- ECR -----------------------------------------------------------------------
+
+ecr_repository_name         = "document-management-service"
+ecr_image_tag_mutability   = "MUTABLE"
+ecr_image_scan_on_push     = true
+ecr_force_delete           = false
+ecr_max_image_count        = 30
+
 # -- RDS (free tier) -----------------------------------------------------------
 
 db_identifier             = "my-app-db"
