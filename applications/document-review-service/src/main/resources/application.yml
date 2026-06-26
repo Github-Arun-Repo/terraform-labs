@@ -1,0 +1,45 @@
+server:
+  port: ${SERVER_PORT:8084}
+
+spring:
+  application:
+    name: ${APP_NAME:document-review-service}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info,prometheus}
+  endpoint:
+    health:
+      probes:
+        enabled: ${MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED:true}
+  metrics:
+    tags:
+      application: ${APP_NAME:document-review-service}
+
+aws:
+  region: ${AWS_REGION:eu-central-1}
+  endpoint-override: ${AWS_ENDPOINT_OVERRIDE:}
+  s3:
+    bucket-name: ${S3_BUCKET_NAME:documents-inventory-s3}
+    view-url-expiry-minutes: ${S3_VIEW_URL_EXPIRY_MINUTES:5}
+  dynamodb:
+    document-table-name: ${DYNAMODB_DOCUMENT_TABLE_NAME:DocumentInventory}
+    review-queue-index-name: ${DYNAMODB_REVIEW_QUEUE_INDEX_NAME:GSI2}
+
+jwt:
+  issuer: ${JWT_ISSUER:document-platform}
+  secret: ${JWT_SECRET:change-this-secret}
+
+audit:
+  read-events-enabled: ${AUDIT_READ_EVENTS_ENABLED:false}
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+  pattern:
+    level: "%5p [cid:%X{correlationId:-}]"

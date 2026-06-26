@@ -57,6 +57,21 @@ output "ecr_repository_url" {
   value       = module.ecr.repository_url
 }
 
+output "document_processor_ecr_repository_name" {
+  description = "Name of the ECR repository used for document-processor images."
+  value       = module.document_processor_ecr.repository_name
+}
+
+output "document_processor_ecr_repository_arn" {
+  description = "ARN of the ECR repository used for document-processor images."
+  value       = module.document_processor_ecr.repository_arn
+}
+
+output "document_processor_ecr_repository_url" {
+  description = "Repository URL used by Jenkins and Helm for document-processor image pushes and pulls."
+  value       = module.document_processor_ecr.repository_url
+}
+
 # -- S3 Outputs ----------------------------------------------------------------
 
 output "documents_inventory_bucket_name" {
@@ -77,6 +92,36 @@ output "documents_inventory_kms_key_arn" {
 output "documents_inventory_kms_key_alias" {
   description = "Alias of the KMS key used to encrypt the document inventory S3 bucket."
   value       = module.documents_inventory_s3.kms_key_alias
+}
+
+output "document_ingestion_queue_url" {
+  description = "SQS queue URL consumed by document-processing-service"
+  value       = aws_sqs_queue.document_ingestion_queue.id
+}
+
+output "document_ingestion_queue_arn" {
+  description = "SQS queue ARN for document ingestion events"
+  value       = aws_sqs_queue.document_ingestion_queue.arn
+}
+
+output "document_ingestion_dlq_url" {
+  description = "SQS DLQ URL for failed document ingestion messages"
+  value       = aws_sqs_queue.document_ingestion_dlq.id
+}
+
+output "document_ingestion_dlq_arn" {
+  description = "SQS DLQ ARN for failed document ingestion messages"
+  value       = aws_sqs_queue.document_ingestion_dlq.arn
+}
+
+output "document_inventory_table_name" {
+  description = "DynamoDB table name for document metadata and processing state"
+  value       = aws_dynamodb_table.document_inventory.name
+}
+
+output "document_inventory_table_arn" {
+  description = "DynamoDB table ARN for document metadata and processing state"
+  value       = aws_dynamodb_table.document_inventory.arn
 }
 
 # -- RDS Outputs ---------------------------------------------------------------
@@ -143,5 +188,20 @@ output "eks_oidc_provider_arn" {
 output "jenkins_build_agent_role_arn" {
   description = "IRSA role ARN to annotate on the jenkins-build-agent Kubernetes ServiceAccount."
   value       = aws_iam_role.jenkins_build_agent.arn
+}
+
+output "document_processing_service_role_arn" {
+  description = "IRSA role ARN to annotate on the document-processing-service Kubernetes ServiceAccount."
+  value       = aws_iam_role.document_processing_service.arn
+}
+
+output "document_api_service_role_arn" {
+  description = "IRSA role ARN to annotate on the document-api-service Kubernetes ServiceAccount."
+  value       = aws_iam_role.document_api_service.arn
+}
+
+output "document_review_service_role_arn" {
+  description = "IRSA role ARN to annotate on the document-review-service Kubernetes ServiceAccount."
+  value       = aws_iam_role.document_review_service.arn
 }
 

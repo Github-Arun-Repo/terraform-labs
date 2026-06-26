@@ -1,0 +1,28 @@
+version: '3.9'
+services:
+  localstack:
+    image: localstack/localstack:3.5.0
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=dynamodb,s3
+      - DEBUG=0
+    volumes:
+      - ./scripts/init-localstack.sh:/etc/localstack/init/ready.d/init-localstack.sh
+
+  document-review-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8084:8084"
+    environment:
+      - AWS_REGION=eu-central-1
+      - AWS_ENDPOINT_OVERRIDE=http://localstack:4566
+      - DYNAMODB_DOCUMENT_TABLE_NAME=DocumentInventory
+      - DYNAMODB_REVIEW_QUEUE_INDEX_NAME=GSI2
+      - S3_BUCKET_NAME=documents-inventory-s3
+      - JWT_SECRET=this-is-a-long-enough-secret-for-hs256-signing
+      - JWT_ISSUER=document-platform
+    depends_on:
+      - localstack

@@ -1,0 +1,5 @@
+apiVersion: v2
+name: document-api-service
+description: Helm chart for document-api-service
+version: 0.1.0
+appVersion: "1.0.0"

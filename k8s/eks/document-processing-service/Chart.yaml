@@ -1,0 +1,5 @@
+apiVersion: v2
+name: document-processing-service
+description: Helm chart for document-processing-service
+version: 0.1.0
+appVersion: "1.0.0"

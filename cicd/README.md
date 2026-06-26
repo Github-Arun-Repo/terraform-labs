@@ -16,9 +16,17 @@ Neither tool does the other's job.
 ```
 cicd/
 ├── jenkins/
-│   └── dms-ci.Jenkinsfile          # CI pipeline — build, test, push, git write-back
+│   ├── dms-ci.Jenkinsfile
+│   ├── document-api-service-ci.Jenkinsfile
+│   ├── document-processing-service-ci.Jenkinsfile
+│   ├── document-review-service-ci.Jenkinsfile
+│   └── user-management-service-ci.Jenkinsfile
 └── argocd/
-    └── dms-application.yaml        # ArgoCD Application CRD — GitOps deployment
+  ├── dms-application.yaml
+  ├── document-api-service-application.yaml
+  ├── document-processing-service-application.yaml
+  ├── document-review-service-application.yaml
+  └── user-management-service-application.yaml
 ```
 
 The Helm charts that **install** Jenkins and ArgoCD into the cluster live under `k8s/`:
@@ -141,11 +149,15 @@ ArgoCD continuously reconciles the cluster state against this path. When Jenkins
 | `ServerSideApply` | `true` | Avoids annotation-size limits on large resources |
 | `ignoreDifferences: /spec/replicas` | Deployment | Allows an HPA to manage replicas without triggering drift |
 
-### Applying the Application
+### Applying the Applications
 
 ```bash
 # ArgoCD must be running first (see k8s/argocd/argocd/)
 kubectl apply -f cicd/argocd/dms-application.yaml
+kubectl apply -f cicd/argocd/user-management-service-application.yaml
+kubectl apply -f cicd/argocd/document-api-service-application.yaml
+kubectl apply -f cicd/argocd/document-processing-service-application.yaml
+kubectl apply -f cicd/argocd/document-review-service-application.yaml
 ```
 
 After applying, watch the sync status:

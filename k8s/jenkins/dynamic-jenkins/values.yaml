@@ -19,7 +19,7 @@ jenkins:
       defaultConfig: true
       configScripts:
         # -----------------------------------------------------------------------
-        # Seed job: auto-creates the DMS build pipeline via Job DSL on first boot.
+        # Seed jobs: auto-create CI pipelines via Job DSL on first boot.
         # The Job DSL plugin (job-dsl) is pre-installed above.
         # Update scm.url to your actual repository URL before deploying.
         # -----------------------------------------------------------------------
@@ -60,6 +60,46 @@ jenkins:
                         }
                       }
                       scriptPath('cicd/jenkins/dms-ci.Jenkinsfile')
+                      lightweight(true)
+                    }
+                  }
+                  disabled(false)
+                }
+
+                pipelineJob('document-processor-build') {
+                  description('Build, test, and deploy the Document Processor service.')
+                  keepDependencies(false)
+                  parameters {
+                    stringParam('AWS_REGION', 'eu-west-1',
+                      'AWS region that hosts the ECR repository and EKS cluster.')
+                    stringParam('ECR_REPOSITORY_URI', '',
+                      'Full ECR URI, e.g. 123456789012.dkr.ecr.eu-west-1.amazonaws.com/document-processor.')
+                    stringParam('IMAGE_TAG', '',
+                      'Optional explicit image tag. Leave empty to use BUILD_NUMBER-shortSHA.')
+                    choiceParam('IMAGE_BUILDER', ['docker', 'jib'],
+                      'docker uses the Dockerfile; jib is the daemonless Maven fallback.')
+                    stringParam('DEPLOY_NAMESPACE', 'document-processor',
+                      'Kubernetes namespace for the document processor Helm release.')
+                    stringParam('HELM_RELEASE', 'document-processor-app',
+                      'Helm release name for the document processor service.')
+                    stringParam('APP_CHART_PATH', 'k8s/eks/document-processor',
+                      'Path to the document processor Helm chart within this repository.')
+                    stringParam('VALUES_FILE', '',
+                      'Optional path to an additional Helm values override file.')
+                    booleanParam('PUSH_LATEST', true,
+                      'Also update the :latest tag in ECR after pushing the build tag.')
+                  }
+                  definition {
+                    cpsScm {
+                      scm {
+                        git {
+                          remote {
+                            url('https://github.com/your-org/terraform-labs.git')
+                          }
+                          branch('*/main')
+                        }
+                      }
+                      scriptPath('cicd/jenkins/document-processor-ci.Jenkinsfile')
                       lightweight(true)
                     }
                   }

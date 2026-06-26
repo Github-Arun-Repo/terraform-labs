@@ -97,6 +97,36 @@ variable "ecr_max_image_count" {
   default     = 30
 }
 
+variable "document_processor_ecr_repository_name" {
+  description = "Name of the ECR repository that stores document-processor images."
+  type        = string
+  default     = "document-processor"
+}
+
+variable "document_processor_ecr_image_tag_mutability" {
+  description = "Whether document-processor ECR tags are mutable or immutable."
+  type        = string
+  default     = "MUTABLE"
+}
+
+variable "document_processor_ecr_image_scan_on_push" {
+  description = "Enable vulnerability scanning for document-processor images on push."
+  type        = bool
+  default     = true
+}
+
+variable "document_processor_ecr_force_delete" {
+  description = "Allow document-processor repository deletion when images still exist. Use true only for disposable lab environments."
+  type        = bool
+  default     = false
+}
+
+variable "document_processor_ecr_max_image_count" {
+  description = "Maximum number of images to keep in the document-processor repository lifecycle policy."
+  type        = number
+  default     = 30
+}
+
 # -- S3 (Document Inventory) ---------------------------------------------------
 
 variable "documents_inventory_bucket_name" {
@@ -127,6 +157,117 @@ variable "documents_inventory_kms_key_description" {
   description = "Description for the KMS key used to encrypt the document inventory S3 bucket."
   type        = string
   default     = "KMS key for documents-inventory-s3 bucket encryption"
+}
+
+variable "enable_documents_inventory_sqs_notifications" {
+  description = "Whether to enable S3 ObjectCreated notifications from document inventory bucket to SQS."
+  type        = bool
+  default     = true
+}
+
+variable "sqs_notification_prefixes" {
+  description = "S3 prefixes under documents inventory bucket that should trigger ingestion SQS notifications."
+  type        = list(string)
+  default = [
+    "invoice/raw/",
+    "receipt/raw/",
+  ]
+}
+
+variable "sqs_notification_events" {
+  description = "S3 events that should trigger ingestion SQS notifications."
+  type        = list(string)
+  default     = ["s3:ObjectCreated:*"]
+}
+
+variable "document_ingestion_queue_name" {
+  description = "SQS queue name for S3 document upload events"
+  type        = string
+  default     = "document-ingestion-queue"
+}
+
+variable "document_ingestion_visibility_timeout_seconds" {
+  description = "SQS visibility timeout for document ingestion queue"
+  type        = number
+  default     = 180
+}
+
+variable "document_ingestion_message_retention_seconds" {
+  description = "SQS message retention in seconds"
+  type        = number
+  default     = 345600
+}
+
+variable "document_ingestion_max_receive_count" {
+  description = "Maximum receive count before message moves to DLQ"
+  type        = number
+  default     = 3
+}
+
+variable "document_ingestion_dlq_name" {
+  description = "DLQ name for failed document ingestion messages"
+  type        = string
+  default     = "document-ingestion-dlq"
+}
+
+variable "document_ingestion_dlq_retention_seconds" {
+  description = "DLQ message retention in seconds"
+  type        = number
+  default     = 1209600
+}
+
+variable "document_processing_sa_namespace" {
+  description = "Kubernetes namespace for document-processing-service service account used with IRSA."
+  type        = string
+  default     = "document-processing"
+}
+
+variable "document_processing_sa_name" {
+  description = "Kubernetes service account name for document-processing-service IRSA."
+  type        = string
+  default     = "document-processing-service"
+}
+
+variable "enable_document_processing_textract_permissions" {
+  description = "Whether to include textract:AnalyzeExpense in document-processing-service IAM policy."
+  type        = bool
+  default     = false
+}
+
+variable "document_inventory_table_name" {
+  description = "DynamoDB table name for document metadata and processing state."
+  type        = string
+  default     = "DocumentInventory"
+}
+
+variable "enable_document_inventory_status_gsi" {
+  description = "Whether to create optional GSI2 for status-based listing in DocumentInventory table."
+  type        = bool
+  default     = true
+}
+
+variable "document_api_sa_namespace" {
+  description = "Kubernetes namespace for document-api-service service account used with IRSA."
+  type        = string
+  default     = "document-api"
+}
+
+variable "document_api_sa_name" {
+  description = "Kubernetes service account name for document-api-service IRSA."
+  type        = string
+  default     = "document-api-service"
+}
+
+variable "document_review_sa_namespace" {
+  description = "Kubernetes namespace for document-review-service service account used with IRSA."
+  type        = string
+  default     = "document-review"
+}
+
+variable "document_review_sa_name" {
+  description = "Kubernetes service account name for document-review-service IRSA."
+  type        = string
+  default     = "document-review-service"
 }
 
 # -- RDS -----------------------------------------------------------------------

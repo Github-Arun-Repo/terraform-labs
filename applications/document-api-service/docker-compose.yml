@@ -1,0 +1,31 @@
+version: '3.9'
+
+services:
+  localstack:
+    image: localstack/localstack:3.4
+    container_name: document-api-localstack
+    environment:
+      SERVICES: s3,sqs,dynamodb
+      AWS_DEFAULT_REGION: eu-central-1
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./scripts/create-localstack-resources.sh:/etc/localstack/init/ready.d/create-localstack-resources.sh
+
+  document-api-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: document-api-service
+    depends_on:
+      localstack:
+        condition: service_started
+    env_file:
+      - .env.example
+    environment:
+      AWS_ENDPOINT_OVERRIDE: http://localstack:4566
+      DYNAMODB_DOCUMENT_TABLE_NAME: DocumentInventory
+      DYNAMODB_CUSTOMER_INDEX_NAME: GSI1
+      DYNAMODB_REVIEW_INDEX_NAME: GSI2
+    ports:
+      - "8082:8082"

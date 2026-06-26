@@ -1,0 +1,48 @@
+replicaCount: 2
+
+image:
+  repository: your-account-id.dkr.ecr.your-region.amazonaws.com/document-processing-service
+  tag: latest
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: document-processing-service
+  annotations: {}
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8083
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+env:
+  - name: SERVER_PORT
+    value: "8083"
+  - name: AWS_REGION
+    value: "eu-central-1"
+  - name: DYNAMODB_DOCUMENT_TABLE_NAME
+    value: "DocumentInventory"
+  - name: DYNAMODB_S3_KEY_INDEX_NAME
+    value: "GSI1"
+  - name: S3_BUCKET_NAME
+    value: "documents-inventory-s3"
+  - name: DOCUMENT_INGESTION_QUEUE_URL
+    value: "REPLACE_ME"
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+pdb:
+  enabled: true
+  minAvailable: 1

@@ -1,0 +1,33 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: user-management-postgres
+    environment:
+      POSTGRES_DB: user_management
+      POSTGRES_USER: user_mgmt
+      POSTGRES_PASSWORD: user_mgmt_pwd
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user_mgmt -d user_management"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  user-management-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: user-management-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/user_management
+      SPRING_DATASOURCE_USERNAME: user_mgmt
+      SPRING_DATASOURCE_PASSWORD: user_mgmt_pwd
+      SERVER_PORT: 8081
+    ports:
+      - "8081:8081"

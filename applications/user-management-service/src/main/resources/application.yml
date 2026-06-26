@@ -1,0 +1,71 @@
+app:
+  name: ${APP_NAME:user-management-service}
+  env: ${APP_ENV:dev}
+
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  datasource:
+    # RDS-compatible JDBC URL; can point to local Postgres for development.
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:document_identity}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:doc_user}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:doc_password}}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    placeholders:
+      # Bootstrap admin seed lets fresh environments immediately use ADMIN-only APIs.
+      bootstrap_admin_email: ${BOOTSTRAP_ADMIN_EMAIL:admin@example.com}
+      bootstrap_admin_full_name: ${BOOTSTRAP_ADMIN_FULL_NAME:Platform Administrator}
+      bootstrap_admin_password: ${BOOTSTRAP_ADMIN_PASSWORD:Admin@12345}
+      bootstrap_admin_bcrypt_rounds: ${BOOTSTRAP_ADMIN_BCRYPT_ROUNDS:12}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info,prometheus}
+  endpoint:
+    health:
+      probes:
+        enabled: ${MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED:true}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+
+app-security:
+  jwt:
+    issuer: ${JWT_ISSUER:document-platform}
+    # MVP uses JWT_SECRET; production should mount RSA key files and switch to RS256 automatically.
+    secret: ${JWT_SECRET:very-strong-secret-key-please-change}
+    access-token-expiry-minutes: ${JWT_ACCESS_TOKEN_EXPIRY_MINUTES:15}
+    refresh-token-expiry-days: ${JWT_REFRESH_TOKEN_EXPIRY_DAYS:7}
+    private-key-path: ${JWT_PRIVATE_KEY_PATH:/etc/secrets/jwt/private.pem}
+    public-key-path: ${JWT_PUBLIC_KEY_PATH:/etc/secrets/jwt/public.pem}
+  password:
+    bcrypt-strength: ${PASSWORD_BCRYPT_STRENGTH:12}
+    max-login-attempts: ${MAX_LOGIN_ATTEMPTS:5}
+    account-lock-minutes: ${ACCOUNT_LOCK_MINUTES:15}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,https://app.example.com}
+
+aws:
+  secrets:
+    db-password-secret-name: ${AWS_DB_PASSWORD_SECRET_NAME:}
+    region: ${AWS_REGION:eu-west-1}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs

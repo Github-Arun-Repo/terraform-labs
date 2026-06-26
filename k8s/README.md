@@ -6,7 +6,11 @@ This folder contains Kubernetes deployment assets for EKS using Helm.
 
 ## 1. Folder Structure
 
-- `k8s/eks/document-management-service` — app deployment Helm chart.
+- `k8s/eks/document-management-service` — core document service chart.
+- `k8s/eks/user-management-service` — user/identity service chart.
+- `k8s/eks/document-api-service` — ingestion API service chart.
+- `k8s/eks/document-processing-service` — DynamoDB-backed processing worker chart.
+- `k8s/eks/document-review-service` — review workflow service chart.
 - `k8s/eks/document-management-alb` — ALB ingress Helm chart.
 - `k8s/jenkins/dynamic-jenkins` — Jenkins dynamic-agent Helm chart.
 - `k8s/scripts` — deployment and prerequisite scripts.
@@ -70,6 +74,10 @@ Path: `k8s/scripts`
 
 - `install-aws-load-balancer-controller.sh` — installs controller with IRSA service account.
 - `deploy-dms.sh` — deploys application chart.
+- `deploy-user-management.sh` — deploys user-management-service chart.
+- `deploy-document-api.sh` — deploys document-api-service chart.
+- `deploy-document-processing.sh` — deploys document-processing-service chart.
+- `deploy-document-review.sh` — deploys document-review-service chart.
 - `deploy-alb.sh` — deploys ALB chart.
 - `deploy-jenkins.sh` — deploys dynamic Jenkins chart.
 - `deploy-all.sh` — executes full stack deployment sequence.

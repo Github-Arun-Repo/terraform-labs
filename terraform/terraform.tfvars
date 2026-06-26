@@ -50,6 +50,12 @@ ecr_image_scan_on_push     = true
 ecr_force_delete           = false
 ecr_max_image_count        = 30
 
+document_processor_ecr_repository_name       = "document-processor"
+document_processor_ecr_image_tag_mutability  = "MUTABLE"
+document_processor_ecr_image_scan_on_push    = true
+document_processor_ecr_force_delete          = false
+document_processor_ecr_max_image_count       = 30
+
 # -- S3 (Document Inventory) ---------------------------------------------------
 
 documents_inventory_bucket_name              = "documents-inventory-s3"
@@ -57,6 +63,27 @@ documents_inventory_bucket_force_delete      = false
 documents_inventory_bucket_enable_versioning = true
 documents_inventory_kms_alias_name           = "alias/documents-inventory-s3"
 documents_inventory_kms_key_description      = "KMS key for documents-inventory-s3 bucket encryption"
+
+document_ingestion_queue_name                  = "document-ingestion-queue"
+document_ingestion_dlq_name                    = "document-ingestion-dlq"
+document_ingestion_visibility_timeout_seconds  = 180
+document_ingestion_message_retention_seconds   = 345600
+document_ingestion_max_receive_count           = 3
+document_ingestion_dlq_retention_seconds       = 1209600
+
+sqs_notification_prefixes = [
+  "invoice/raw/",
+  "receipt/raw/",
+]
+
+document_inventory_table_name = "DocumentInventory"
+
+document_api_sa_namespace        = "document-api"
+document_api_sa_name             = "document-api-service"
+document_processing_sa_namespace = "document-processing"
+document_processing_sa_name      = "document-processing-service"
+document_review_sa_namespace     = "document-review"
+document_review_sa_name          = "document-review-service"
 
 # -- RDS (free tier) -----------------------------------------------------------
 

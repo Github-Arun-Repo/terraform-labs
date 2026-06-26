@@ -126,6 +126,150 @@ module "ecr" {
   tags = var.default_tags
 }
 
+module "document_processor_ecr" {
+  source = "./modules/ecr"
+
+  repository_name      = var.document_processor_ecr_repository_name
+  image_tag_mutability = var.document_processor_ecr_image_tag_mutability
+  image_scan_on_push   = var.document_processor_ecr_image_scan_on_push
+  force_delete         = var.document_processor_ecr_force_delete
+  max_image_count      = var.document_processor_ecr_max_image_count
+
+  tags = var.default_tags
+}
+
+# -- SQS (Document Ingestion) -------------------------------------------------
+
+resource "aws_sqs_queue" "document_ingestion_dlq" {
+  name                      = var.document_ingestion_dlq_name
+  message_retention_seconds = var.document_ingestion_dlq_retention_seconds
+  sqs_managed_sse_enabled   = true
+
+  tags = merge(var.default_tags, {
+    Name = var.document_ingestion_dlq_name
+  })
+}
+
+resource "aws_sqs_queue" "document_ingestion_queue" {
+  name                       = var.document_ingestion_queue_name
+  visibility_timeout_seconds = var.document_ingestion_visibility_timeout_seconds
+  message_retention_seconds  = var.document_ingestion_message_retention_seconds
+  sqs_managed_sse_enabled    = true
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.document_ingestion_dlq.arn
+    maxReceiveCount     = var.document_ingestion_max_receive_count
+  })
+
+  tags = merge(var.default_tags, {
+    Name = var.document_ingestion_queue_name
+  })
+}
+
+data "aws_caller_identity" "current" {}
+data "aws_partition" "current" {}
+
+data "aws_iam_policy_document" "allow_s3_to_send_document_events" {
+  statement {
+    sid    = "AllowS3ToSendDocumentUploadEvents"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["s3.amazonaws.com"]
+    }
+
+    actions = ["sqs:SendMessage"]
+
+    resources = [aws_sqs_queue.document_ingestion_queue.arn]
+
+    condition {
+      test     = "ArnEquals"
+      variable = "aws:SourceArn"
+      values   = ["arn:${data.aws_partition.current.partition}:s3:::${var.documents_inventory_bucket_name}"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
+}
+
+resource "aws_sqs_queue_policy" "allow_s3_to_send_document_events" {
+  queue_url = aws_sqs_queue.document_ingestion_queue.id
+  policy    = data.aws_iam_policy_document.allow_s3_to_send_document_events.json
+}
+
+# -- DynamoDB (Document Inventory) ---------------------------------------------
+
+resource "aws_dynamodb_table" "document_inventory" {
+  name         = var.document_inventory_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "PK"
+  range_key    = "SK"
+
+  attribute {
+    name = "PK"
+    type = "S"
+  }
+
+  attribute {
+    name = "SK"
+    type = "S"
+  }
+
+  attribute {
+    name = "GSI1PK"
+    type = "S"
+  }
+
+  attribute {
+    name = "GSI1SK"
+    type = "S"
+  }
+
+  attribute {
+    name = "GSI2PK"
+    type = "S"
+  }
+
+  attribute {
+    name = "GSI2SK"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "GSI1"
+    hash_key        = "GSI1PK"
+    range_key       = "GSI1SK"
+    projection_type = "ALL"
+  }
+
+  dynamic "global_secondary_index" {
+    for_each = var.enable_document_inventory_status_gsi ? [1] : []
+    content {
+      name            = "GSI2"
+      hash_key        = "GSI2PK"
+      range_key       = "GSI2SK"
+      projection_type = "ALL"
+    }
+  }
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  server_side_encryption {
+    enabled = true
+  }
+
+  tags = merge(var.default_tags, {
+    Name = var.document_inventory_table_name
+  })
+}
+
 # -- S3 Module (Document Inventory) -------------------------------------------
 
 module "documents_inventory_s3" {
@@ -137,7 +281,14 @@ module "documents_inventory_s3" {
   kms_alias_name      = var.documents_inventory_kms_alias_name
   kms_key_description = var.documents_inventory_kms_key_description
 
+  enable_sqs_notifications = var.enable_documents_inventory_sqs_notifications
+  sqs_notification_queue_arn = aws_sqs_queue.document_ingestion_queue.arn
+  sqs_notification_prefixes = var.sqs_notification_prefixes
+  sqs_notification_events   = var.sqs_notification_events
+
   tags = var.default_tags
+
+  depends_on = [aws_sqs_queue_policy.allow_s3_to_send_document_events]
 }
 
 # Allow EKS nodes to reach RDS - node SG gets the DB port opened
@@ -181,6 +332,12 @@ module "rds" {
 locals {
   jenkins_sa_namespace = "jenkins"
   jenkins_sa_name      = "jenkins-build-agent"
+  document_api_sa_namespace        = var.document_api_sa_namespace
+  document_api_sa_name             = var.document_api_sa_name
+  document_processing_sa_namespace = var.document_processing_sa_namespace
+  document_processing_sa_name      = var.document_processing_sa_name
+  document_review_sa_namespace     = var.document_review_sa_namespace
+  document_review_sa_name          = var.document_review_sa_name
   # Strip the https:// scheme – AWS condition keys use the bare host/path form
   oidc_issuer_host = trimprefix(module.eks.oidc_issuer_url, "https://")
 }
@@ -255,4 +412,263 @@ resource "aws_iam_policy" "ecr_push" {
 resource "aws_iam_role_policy_attachment" "jenkins_agent_ecr_push" {
   role       = aws_iam_role.jenkins_build_agent.name
   policy_arn = aws_iam_policy.ecr_push.arn
+}
+
+# -- IRSA: document-api-service → DynamoDB + S3 (presigned URL paths) ---------
+
+data "aws_iam_policy_document" "document_api_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [module.eks.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_host}:sub"
+      values   = ["system:serviceaccount:${local.document_api_sa_namespace}:${local.document_api_sa_name}"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_host}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "document_api_service" {
+  name_prefix        = "document-api-service-"
+  assume_role_policy = data.aws_iam_policy_document.document_api_assume_role.json
+
+  tags = merge(var.default_tags, { Name = "document-api-service-irsa" })
+}
+
+data "aws_iam_policy_document" "document_api_access" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:PutItem",
+      "dynamodb:GetItem",
+      "dynamodb:Query",
+      "dynamodb:UpdateItem",
+    ]
+    resources = [
+      aws_dynamodb_table.document_inventory.arn,
+      "${aws_dynamodb_table.document_inventory.arn}/index/*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:PutObject",
+      "s3:GetObject",
+    ]
+    resources = [
+      "${module.documents_inventory_s3.bucket_arn}/invoice/raw/*",
+      "${module.documents_inventory_s3.bucket_arn}/receipt/raw/*",
+    ]
+  }
+}
+
+resource "aws_iam_policy" "document_api_access" {
+  name_prefix = "document-api-access-"
+  description = "Allows document-api-service IRSA role to write/query DocumentInventory and create presigned URL target object permissions."
+  policy      = data.aws_iam_policy_document.document_api_access.json
+
+  tags = merge(var.default_tags, { Name = "document-api-access-policy" })
+}
+
+resource "aws_iam_role_policy_attachment" "document_api_access" {
+  role       = aws_iam_role.document_api_service.name
+  policy_arn = aws_iam_policy.document_api_access.arn
+}
+
+# -- IRSA: document-processing-service → SQS + S3 (+optional Textract) --------
+
+data "aws_iam_policy_document" "document_processing_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [module.eks.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_host}:sub"
+      values   = ["system:serviceaccount:${local.document_processing_sa_namespace}:${local.document_processing_sa_name}"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_host}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "document_processing_service" {
+  name_prefix        = "document-processing-service-"
+  assume_role_policy = data.aws_iam_policy_document.document_processing_assume_role.json
+
+  tags = merge(var.default_tags, { Name = "document-processing-service-irsa" })
+}
+
+data "aws_iam_policy_document" "document_processing_access" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "sqs:ReceiveMessage",
+      "sqs:DeleteMessage",
+      "sqs:GetQueueAttributes",
+      "sqs:GetQueueUrl",
+      "sqs:ChangeMessageVisibility",
+    ]
+    resources = [aws_sqs_queue.document_ingestion_queue.arn]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:GetObjectVersion",
+    ]
+    resources = [
+      "${module.documents_inventory_s3.bucket_arn}/invoice/raw/*",
+      "${module.documents_inventory_s3.bucket_arn}/receipt/raw/*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:PutObject",
+    ]
+    resources = [
+      "${module.documents_inventory_s3.bucket_arn}/invoice/processed/*",
+      "${module.documents_inventory_s3.bucket_arn}/receipt/processed/*",
+      "${module.documents_inventory_s3.bucket_arn}/invoice/failed/*",
+      "${module.documents_inventory_s3.bucket_arn}/receipt/failed/*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:Query",
+      "dynamodb:ConditionCheckItem",
+    ]
+    resources = [
+      aws_dynamodb_table.document_inventory.arn,
+      "${aws_dynamodb_table.document_inventory.arn}/index/*",
+    ]
+  }
+
+  dynamic "statement" {
+    for_each = var.enable_document_processing_textract_permissions ? [1] : []
+    content {
+      effect    = "Allow"
+      actions   = ["textract:AnalyzeExpense"]
+      resources = ["*"]
+    }
+  }
+}
+
+resource "aws_iam_policy" "document_processing_access" {
+  name_prefix = "document-processing-access-"
+  description = "Allows document-processing-service IRSA role to consume ingestion SQS and read/write required S3 prefixes."
+  policy      = data.aws_iam_policy_document.document_processing_access.json
+
+  tags = merge(var.default_tags, { Name = "document-processing-access-policy" })
+}
+
+resource "aws_iam_role_policy_attachment" "document_processing_access" {
+  role       = aws_iam_role.document_processing_service.name
+  policy_arn = aws_iam_policy.document_processing_access.arn
+}
+
+# -- IRSA: document-review-service -> DynamoDB + S3 --------------------------
+
+data "aws_iam_policy_document" "document_review_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [module.eks.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_host}:sub"
+      values   = ["system:serviceaccount:${local.document_review_sa_namespace}:${local.document_review_sa_name}"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_host}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "document_review_service" {
+  name_prefix        = "document-review-service-"
+  assume_role_policy = data.aws_iam_policy_document.document_review_assume_role.json
+
+  tags = merge(var.default_tags, { Name = "document-review-service-irsa" })
+}
+
+data "aws_iam_policy_document" "document_review_access" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:GetItem",
+      "dynamodb:Query",
+      "dynamodb:UpdateItem",
+      "dynamodb:PutItem",
+      "dynamodb:ConditionCheckItem",
+    ]
+    resources = [
+      aws_dynamodb_table.document_inventory.arn,
+      "${aws_dynamodb_table.document_inventory.arn}/index/*",
+    ]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+    ]
+    resources = [
+      "${module.documents_inventory_s3.bucket_arn}/invoice/raw/*",
+      "${module.documents_inventory_s3.bucket_arn}/receipt/raw/*",
+      "${module.documents_inventory_s3.bucket_arn}/invoice/processed/*",
+      "${module.documents_inventory_s3.bucket_arn}/receipt/processed/*",
+    ]
+  }
+}
+
+resource "aws_iam_policy" "document_review_access" {
+  name_prefix = "document-review-access-"
+  description = "Allows document-review-service IRSA role to read documents and manage review data in DocumentInventory."
+  policy      = data.aws_iam_policy_document.document_review_access.json
+
+  tags = merge(var.default_tags, { Name = "document-review-access-policy" })
+}
+
+resource "aws_iam_role_policy_attachment" "document_review_access" {
+  role       = aws_iam_role.document_review_service.name
+  policy_arn = aws_iam_policy.document_review_access.arn
 }

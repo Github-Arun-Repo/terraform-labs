@@ -1,0 +1,26 @@
+version: '3.9'
+services:
+  localstack:
+    image: localstack/localstack:3.5.0
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3,sqs,dynamodb
+    volumes:
+      - ./scripts/init-localstack.sh:/etc/localstack/init/ready.d/init-localstack.sh
+
+  document-processing-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    environment:
+      - AWS_REGION=eu-central-1
+      - AWS_ENDPOINT_OVERRIDE=http://localstack:4566
+      - S3_BUCKET_NAME=documents-inventory-s3
+      - DYNAMODB_DOCUMENT_TABLE_NAME=DocumentInventory
+      - DOCUMENT_INGESTION_QUEUE_URL=http://localstack:4566/000000000000/document-ingestion-queue
+      - EXTRACTOR_MODE=MOCK
+    depends_on:
+      - localstack

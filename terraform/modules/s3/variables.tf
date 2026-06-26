@@ -33,3 +33,27 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "enable_sqs_notifications" {
+  description = "Whether to enable S3 ObjectCreated notifications to SQS"
+  type        = bool
+  default     = false
+}
+
+variable "sqs_notification_queue_arn" {
+  description = "SQS queue ARN used as S3 event notification destination"
+  type        = string
+  default     = null
+}
+
+variable "sqs_notification_prefixes" {
+  description = "List of S3 key prefixes that should trigger SQS notifications"
+  type        = list(string)
+  default     = []
+}
+
+variable "sqs_notification_events" {
+  description = "S3 events that should trigger SQS notifications"
+  type        = list(string)
+  default     = ["s3:ObjectCreated:*"]
+}

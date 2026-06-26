@@ -1,0 +1,16 @@
+server:
+  port: 8080
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: ${MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${MULTIPART_MAX_REQUEST_SIZE:10MB}
+
+app:
+  s3:
+    bucket-name: ${DOCUMENTS_S3_BUCKET:documents-inventory-s3}
+  upload:
+    max-file-size-bytes: ${MAX_UPLOAD_FILE_SIZE_BYTES:10485760}
+    allowed-extensions: ${ALLOWED_EXTENSIONS:PDF,PNG,JPEG,JPG}
+    allowed-content-types: ${ALLOWED_CONTENT_TYPES:application/pdf,image/png,image/jpeg}

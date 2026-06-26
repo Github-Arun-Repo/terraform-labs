@@ -138,3 +138,20 @@ resource "aws_s3_bucket_policy" "this" {
     ]
   })
 }
+
+resource "aws_s3_bucket_notification" "this" {
+  count = var.enable_sqs_notifications && var.sqs_notification_queue_arn != null && length(var.sqs_notification_prefixes) > 0 ? 1 : 0
+
+  bucket = aws_s3_bucket.this.id
+
+  dynamic "queue" {
+    for_each = var.sqs_notification_prefixes
+
+    content {
+      id            = "sqs-notification-${replace(replace(queue.value, "/", "-"), "_", "-")}"
+      queue_arn     = var.sqs_notification_queue_arn
+      events        = var.sqs_notification_events
+      filter_prefix = queue.value
+    }
+  }
+}
