@@ -30,19 +30,24 @@ The application layer is built for three goals:
 
 ```mermaid
 flowchart LR
-		Client[Client App / API Consumer] --> UMS[user-management-service]
-		Client --> API[document-api-service]
+	classDef edge fill:#EAF4FF,stroke:#2563EB,color:#0F172A,stroke-width:1.5px;
+	classDef svc fill:#EFFFF7,stroke:#10B981,color:#052E2B,stroke-width:1.5px;
+	classDef data fill:#FFF8E8,stroke:#F59E0B,color:#3B2A00,stroke-width:1.5px;
+	classDef event fill:#F5ECFF,stroke:#8B5CF6,color:#2E1065,stroke-width:1.5px;
 
-		API --> S3[(S3 Documents Bucket)]
-		API --> DDB[(DynamoDB Document Metadata)]
+	Client[Client App]:::edge --> UMS[user-management-service]:::svc
+	Client --> API[document-api-service]:::svc
 
-		S3 --> EVT[S3 ObjectCreated Event]
-		EVT --> ORCH[document-processing-service]
-		ORCH --> PROC[document-processor]
-		PROC --> REVIEW[document-review-service]
+	API --> S3[(S3 Documents)]:::data
+	API --> DDB[(DynamoDB Metadata)]:::data
 
-		UMS -. JWT / identity .-> API
-		UMS -. JWT / identity .-> REVIEW
+	S3 --> EVT[S3 ObjectCreated]:::event
+	EVT --> ORCH[document-processing-service]:::svc
+	ORCH --> PROC[document-processor]:::svc
+	PROC --> REVIEW[document-review-service]:::svc
+
+	UMS -. JWT / identity .-> API
+	UMS -. JWT / identity .-> REVIEW
 ```
 
 Key interpretation:
@@ -56,23 +61,30 @@ Key interpretation:
 ## 4) Architectural style and boundaries
 
 ```mermaid
-flowchart TB
-		subgraph GatewayLayer[API and Identity Entry]
-			UMS[user-management-service]
-			API[document-api-service]
+flowchart LR
+		classDef gateway fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A,stroke-width:2px;
+		classDef process fill:#D1FAE5,stroke:#059669,color:#064E3B,stroke-width:2px;
+		classDef workflow fill:#FCE7F3,stroke:#DB2777,color:#831843,stroke-width:2px;
+
+		subgraph G[Gateway Domain]
+			UMS[Identity\nuser-management-service]
+			API[Intake API\ndocument-api-service]
 		end
 
-		subgraph ProcessingLayer[Async Processing Domain]
-			DPS[document-processing-service]
-			DP[document-processor]
+		subgraph P[Processing Domain]
+			DPS[Orchestration\ndocument-processing-service]
+			DP[Worker\ndocument-processor]
 		end
 
-		subgraph WorkflowLayer[Human Review Domain]
-			DRS[document-review-service]
+		subgraph W[Workflow Domain]
+			DRS[Review Workflow\ndocument-review-service]
 		end
 
-		GatewayLayer --> ProcessingLayer
-		ProcessingLayer --> WorkflowLayer
+		G --> P --> W
+
+		class UMS,API gateway
+		class DPS,DP process
+		class DRS workflow
 ```
 
 Boundary rules:
@@ -81,6 +93,39 @@ Boundary rules:
 2. Upload/intake concerns stay in document-api-service.
 3. Heavy processing is event-driven and isolated from request latency.
 4. Human workflow states are isolated in document-review-service.
+
+### Alternative diagram styles
+
+#### A) Event-centric view
+
+```mermaid
+flowchart TB
+	classDef api fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A,stroke-width:2px;
+	classDef event fill:#F3E8FF,stroke:#9333EA,color:#581C87,stroke-width:2px;
+	classDef worker fill:#DCFCE7,stroke:#16A34A,color:#14532D,stroke-width:2px;
+
+	C[Client + JWT]:::api --> A[document-api-service]:::api
+	A --> S[(S3 Upload)]:::event
+	S --> E[S3 ObjectCreated]:::event
+	E --> P[document-processing-service]:::worker
+	P --> X[document-processor]:::worker
+	X --> R[document-review-service]:::api
+```
+
+#### B) Capability map view
+
+```mermaid
+flowchart LR
+	classDef sec fill:#FEF3C7,stroke:#D97706,color:#78350F,stroke-width:2px;
+	classDef intake fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E,stroke-width:2px;
+	classDef proc fill:#DCFCE7,stroke:#16A34A,color:#14532D,stroke-width:2px;
+	classDef review fill:#FCE7F3,stroke:#DB2777,color:#831843,stroke-width:2px;
+
+	U[Auth + Access]:::sec --> I[Intake + Metadata]:::intake
+	I --> O[Orchestration + Retry]:::proc
+	O --> W[Extraction + Enrichment]:::proc
+	W --> V[Review + Decision]:::review
+```
 
 ---
 

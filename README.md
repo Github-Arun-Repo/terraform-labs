@@ -45,29 +45,34 @@ Explore four core domains of this architecture. **Click any box below to dive in
 
 ```mermaid
 graph TB
-    Users["👥 Users / Clients"]
-    Users -->|HTTPS 443| ALB["🔀 Application Load Balancer"]
-    
-    ALB --> EKS["☸️ EKS Cluster"]
-    
-    subgraph EKS_Interior["Inside EKS"]
-        Apps["📱 App Pods (replicas=2)"]
-        Jenkins["� Jenkins Controller"]
-        Agents["⚙️ Dynamic Agent Pods"]
-        ArgoCD["🚀 ArgoCD Controller"]
-    end
-    
-    EKS --> EKS_Interior
-    Apps --> RDS["🗄️ RDS MySQL"]
-    
-    TF["📝 Terraform Infrastructure Code"]
-    TF -.->|Manages| EKS & ALB & RDS
-    
-    Git["📦 Git Repository"]
-    Git -.->|CI trigger| Jenkins
-    Jenkins -.->|push image + tag commit| Git
-    Git -.->|GitOps sync| ArgoCD
-    ArgoCD -.->|helm upgrade| Apps
+  classDef edge fill:#EAF4FF,stroke:#1D4ED8,color:#0F172A,stroke-width:1.5px;
+  classDef runtime fill:#EFFFF7,stroke:#059669,color:#052E2B,stroke-width:1.5px;
+  classDef data fill:#FFF7ED,stroke:#EA580C,color:#431407,stroke-width:1.5px;
+  classDef control fill:#F5ECFF,stroke:#7C3AED,color:#2E1065,stroke-width:1.5px;
+
+  Users["Users / Clients"]:::edge -->|HTTPS 443| ALB["Public ALB"]:::edge
+  ALB --> EKS["EKS Cluster"]:::runtime
+
+  subgraph EKS_Interior["Inside EKS"]
+    Apps["Application Pods"]:::runtime
+    Jenkins["Jenkins Controller"]:::control
+    Agents["Dynamic Agents"]:::control
+    ArgoCD["ArgoCD Controller"]:::control
+  end
+
+  EKS --> EKS_Interior
+  Apps --> RDS["RDS Database"]:::data
+
+  TF["Terraform IaC"]:::control
+  TF -.->|manages| EKS
+  TF -.->|manages| ALB
+  TF -.->|manages| RDS
+
+  Git["Git Repository"]:::control
+  Git -.->|CI trigger| Jenkins
+  Jenkins -.->|image tag commit| Git
+  Git -.->|GitOps sync| ArgoCD
+  ArgoCD -.->|deploy| Apps
 ```
 
 **Four architectural tiers:**
