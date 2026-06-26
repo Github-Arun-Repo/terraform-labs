@@ -12,29 +12,35 @@ Explore four core domains of this architecture. **Click any box below to dive in
 
 <table>
   <tr>
-    <td align="center" width="25%">
+    <td align="center" width="20%">
       <h3>🏗️ Infrastructure</h3>
       <p>AWS VPC, EKS Cluster, RDS Database</p>
       <p><strong><a href="terraform/README.md">→ View Full Guide</a></strong></p>
       <p style="font-size: 0.9em;">Multi-tier networking, security groups, state management</p>
     </td>
-    <td align="center" width="25%">
+    <td align="center" width="20%">
       <h3>📱 Application</h3>
       <p>Spring Boot Microservices, Events, APIs</p>
       <p><strong><a href="applications/README.md">→ View Full Guide</a></strong></p>
       <p style="font-size: 0.9em;">Service boundaries, sequence diagrams, learning path</p>
     </td>
-    <td align="center" width="25%">
+    <td align="center" width="20%">
       <h3>⚙️ Kubernetes</h3>
       <p>EKS Runtime, Helm Charts, Ingress</p>
       <p><strong><a href="k8s/README.md">→ View Full Guide</a></strong></p>
       <p style="font-size: 0.9em;">Deployment model, Helm architecture, traffic routing</p>
     </td>
-    <td align="center" width="25%">
+    <td align="center" width="20%">
       <h3>🚀 Delivery</h3>
       <p>Jenkins CI, ArgoCD GitOps, Pipelines</p>
       <p><strong><a href="cicd/README.md">→ View Full Guide</a></strong></p>
       <p style="font-size: 0.9em;">CI/CD separation, dynamic agents, GitOps deployments</p>
+    </td>
+    <td align="center" width="20%">
+      <h3>📡 Observability</h3>
+      <p>Metrics, Traces, Logs, Alerting</p>
+      <p><strong><a href="observability/README.md">→ View Full Guide</a></strong></p>
+      <p style="font-size: 0.9em;">Golden signals, dashboards, local verification, runbooks</p>
     </td>
   </tr>
 </table>
@@ -92,6 +98,7 @@ graph TB
 | `applications/` | Spring Boot microservices architecture and service design | [Full Application Guide](applications/README.md) |
 | `k8s/` | EKS Helm charts and deployment scripts | [Full Kubernetes Guide](k8s/README.md) |
 | `cicd/` | Jenkins CI pipelines + ArgoCD GitOps manifests | [Full Delivery Guide](cicd/README.md) |
+| `observability/` | Metrics, tracing, logging, dashboards, and alerting playbook | [Full Observability Guide](observability/README.md) |
 
 ---
 
