@@ -156,7 +156,7 @@ Default service ports:
 4. 8084 document-review-service
 5. 8080 document-processor
 
-## Read Order For Engineering Or Interview Review
+## Read Order For Engineering Review
 
 1. Read [user-management-service/README.md](user-management-service/README.md) for auth and role model.
 2. Read [document-api-service/README.md](document-api-service/README.md) for intake API contracts and metadata schema.
