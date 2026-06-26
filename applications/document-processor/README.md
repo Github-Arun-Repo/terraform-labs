@@ -2,36 +2,69 @@
 
 Status: In progress / legacy path
 
-## Purpose
-`document-processor` is a standalone invoice upload service that accepts multipart uploads and stores files directly in S3.
+## Business Responsibility
+This module provides a standalone multipart upload API for invoice files.
 
-## Current implementation scope
-Implemented endpoints:
-1. `POST /api/invoices/upload`
-2. `GET /api/invoices/constraints`
+Current role in repository:
+1. Validates file and customer inputs.
+2. Stores uploaded file directly in S3.
+3. Returns upload metadata.
 
-Implemented behavior:
-1. Validates customer ID format.
-2. Validates file extension, content type, and size.
-3. Sanitizes filename.
-4. Uploads binary directly to S3.
-5. Returns upload metadata response.
+It is not part of the current DynamoDB/SQS review pipeline used by the other services.
 
-## What is not implemented here
-1. No SQS event orchestration logic.
-2. No DynamoDB document lifecycle integration.
-3. No finance review workflow integration.
-4. No module-level docker-compose file in this folder.
+## API Specification
 
-## Local run
-1. Run with Maven from this module:
-   - `mvn clean spring-boot:run`
-2. Default port from config: `8080`
+Base path: `/api/invoices`
 
-## Build and tests
+| Endpoint | Purpose | Request | Response |
+|---|---|---|---|
+| `POST /upload` | Upload a file to S3 | multipart form-data with `customerId` and `file` | `UploadInvoiceResponse` |
+| `GET /constraints` | Get server-side upload limits | none | `UploadConstraintsResponse` |
+
+`customerId` validation:
+1. regex `^[a-zA-Z0-9_-]{3,64}$`
+
+`UploadInvoiceResponse` fields:
+1. `bucketName`
+2. `objectKey`
+3. `customerId`
+4. `fileType`
+5. `contentType`
+6. `sizeBytes`
+
+## Storage Model
+
+This module has no relational or DynamoDB schema.
+
+Persistence behavior:
+1. Writes only to S3 bucket configured by `DOCUMENTS_S3_BUCKET`.
+2. Object key format: `{extension}/raw/{customerId}/{timestamp-uuid-filename}`.
+
+```mermaid
+flowchart LR
+   C[Client multipart upload] --> P[document-processor]
+   P --> S[(S3 bucket)]
+```
+
+## Validation Rules
+
+1. File must be present and non-empty.
+2. File size must be <= configured max.
+3. Filename must be safe (path traversal blocked).
+4. Extension must be in allowed list.
+5. Content type must be in allowed list.
+
+## Local Run
+
+1. `mvn clean spring-boot:run`
+2. default port: `8080`
+
+## Build And Test
+
 1. `mvn clean verify`
 
-## Environment variables (selected)
+## Environment Variables (Important)
+
 1. `DOCUMENTS_S3_BUCKET`
 2. `MAX_UPLOAD_FILE_SIZE_BYTES`
 3. `ALLOWED_EXTENSIONS`
@@ -39,6 +72,7 @@ Implemented behavior:
 5. `MULTIPART_MAX_FILE_SIZE`
 6. `MULTIPART_MAX_REQUEST_SIZE`
 
-## Notes
-1. This module overlaps with intake concerns already covered by `document-api-service`.
-2. Treat this module as an in-progress or transitional path unless integrated intentionally into the main architecture.
+## Scope Note
+
+1. This module overlaps with intake concerns already handled by `document-api-service`.
+2. Treat as transitional unless explicitly integrated into the primary workflow.
