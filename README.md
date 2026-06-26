@@ -20,9 +20,9 @@ Explore four core domains of this architecture. **Click any box below to dive in
     </td>
     <td align="center" width="25%">
       <h3>📱 Application</h3>
-      <p>Spring Boot Service, JWT Auth, APIs</p>
+      <p>Spring Boot Microservices, Events, APIs</p>
       <p><strong><a href="applications/README.md">→ View Full Guide</a></strong></p>
-      <p style="font-size: 0.9em;">Domain model, API contracts, security boundaries</p>
+      <p style="font-size: 0.9em;">Service boundaries, sequence diagrams, learning path</p>
     </td>
     <td align="center" width="25%">
       <h3>⚙️ Kubernetes</h3>
@@ -84,7 +84,7 @@ graph TB
 | Folder | Purpose | Documentation |
 |--------|---------|-----------------|
 | `terraform/` | Infrastructure-as-Code for AWS | [Full Terraform Guide](terraform/README.md) |
-| `applications/` | Spring Boot Document Management Service | [Full Application Guide](applications/README.md) |
+| `applications/` | Spring Boot microservices architecture and service design | [Full Application Guide](applications/README.md) |
 | `k8s/` | EKS Helm charts and deployment scripts | [Full Kubernetes Guide](k8s/README.md) |
 | `cicd/` | Jenkins CI pipelines + ArgoCD GitOps manifests | [Full Delivery Guide](cicd/README.md) |
 
