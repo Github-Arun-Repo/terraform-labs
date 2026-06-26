@@ -2,6 +2,36 @@
 
 # -- RDS Security Group --------------------------------------------------------
 
+resource "random_password" "master" {
+  length           = 24
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
+resource "aws_secretsmanager_secret" "master" {
+  count = var.manage_master_user_password ? 0 : 1
+
+  name_prefix = "${var.identifier}-master-"
+  description = "Fallback master password secret for ${var.identifier} when RDS-managed master secret is disabled."
+
+  tags = merge(var.tags, {
+    Name = "${var.identifier}-master-secret"
+  })
+}
+
+resource "aws_secretsmanager_secret_version" "master" {
+  count = var.manage_master_user_password ? 0 : 1
+
+  secret_id = aws_secretsmanager_secret.master[0].id
+  secret_string = jsonencode({
+    username = var.db_username
+    password = random_password.master.result
+    engine   = var.engine
+    dbname   = var.db_name
+    port     = var.db_port
+  })
+}
+
 resource "aws_security_group" "rds" {
   name_prefix = "${var.identifier}-rds-"
   description = "Allow inbound DB traffic from the app tier only"
@@ -73,10 +103,11 @@ resource "aws_db_instance" "this" {
   storage_encrypted     = true
 
   # Database
-  db_name  = var.db_name
-  username = var.db_username
-  password = var.db_password
-  port     = var.db_port
+  db_name                     = var.db_name
+  username                    = var.db_username
+  manage_master_user_password = var.manage_master_user_password
+  password                    = var.manage_master_user_password ? null : random_password.master.result
+  port                        = var.db_port
 
   # Network
   db_subnet_group_name   = var.db_subnet_group_name

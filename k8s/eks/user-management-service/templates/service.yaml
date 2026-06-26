@@ -11,4 +11,4 @@ spec:
       port: {{ .Values.service.port }}
       targetPort: {{ .Values.service.targetPort }}
   selector:
-    app.kubernetes.io/name: {{ include "user-management-service.name" . }}
+    {{- include "user-management-service.selectorLabels" . | nindent 4 }}

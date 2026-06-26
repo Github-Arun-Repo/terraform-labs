@@ -42,6 +42,21 @@ default_tags = {
   ManagedBy   = "terraform"
 }
 
+# -- GitHub Actions OIDC ------------------------------------------------------
+
+github_actions_repository = "Github-Arun-Repo/terraform-labs"
+
+# Restrict CI role to workflows running from main branch in this repository.
+github_actions_ci_subs = [
+  "repo:Github-Arun-Repo/terraform-labs:ref:refs/heads/main",
+]
+
+# Restrict plan role to main and pull_request contexts in this repository.
+github_actions_plan_subs = [
+  "repo:Github-Arun-Repo/terraform-labs:ref:refs/heads/main",
+  "repo:Github-Arun-Repo/terraform-labs:pull_request",
+]
+
 # -- ECR -----------------------------------------------------------------------
 
 document_processor_ecr_repository_name       = "document-processor"
@@ -78,6 +93,8 @@ document_processing_sa_namespace = "document-processing"
 document_processing_sa_name      = "document-processing-service"
 document_review_sa_namespace     = "document-review"
 document_review_sa_name          = "document-review-service"
+user_management_sa_namespace     = "user-management"
+user_management_sa_name          = "user-management-service"
 
 # -- RDS (free tier) -----------------------------------------------------------
 
@@ -88,16 +105,19 @@ db_parameter_group_family = "mysql8.0"
 db_port                   = 3306
 db_name                   = "appdb"
 db_username               = "dbadmin"
-# db_password - supply via environment variable to avoid committing secrets:
-#   export TF_VAR_db_password="YourStrongPassword123!"
+db_manage_master_user_password = true
 
 # -- EKS -----------------------------------------------------------------------
 
 eks_cluster_name    = "my-app-eks"
-eks_cluster_version = "1.30"
+eks_cluster_version = "1.36"
+eks_authentication_mode = "API_AND_CONFIG_MAP"
 
-# Three self-managed node groups - all t3.micro (free-tier eligible), 1 node each for labs.
-# Labels are passed straight through to kubelet --node-labels on every node in the group.
+use_pod_identity = false
+karpenter_enabled = false
+
+# Three managed node groups - all t3.micro (free-tier eligible), 1 node each for labs.
+# Labels are applied through managed node group configuration.
 eks_node_groups = {
   api = {
     instance_type = "t3.micro"
@@ -133,4 +153,7 @@ eks_node_groups = {
     }
   }
 }
+
+eks_access_admin_principal_arns = []
+eks_access_ci_principal_arns    = []
 

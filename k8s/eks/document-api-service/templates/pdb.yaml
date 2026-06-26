@@ -3,9 +3,11 @@ apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
   name: {{ include "document-api-service.fullname" . }}
+  labels:
+    {{- include "document-api-service.labels" . | nindent 4 }}
 spec:
   minAvailable: {{ .Values.pdb.minAvailable }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "document-api-service.name" . }}
+      {{- include "document-api-service.selectorLabels" . | nindent 6 }}
 {{- end }}

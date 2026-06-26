@@ -1,0 +1,15 @@
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: {{ .Values.ec2NodeClass.name }}
+spec:
+  amiFamily: {{ .Values.ec2NodeClass.amiFamily }}
+  role: {{ .Values.ec2NodeClass.role }}
+  subnetSelectorTerms:
+    - tags:
+        {{ .Values.ec2NodeClass.subnetTagSelectorKey }}: {{ .Values.karpenter.settings.clusterName }}
+  securityGroupSelectorTerms:
+    - tags:
+        {{ .Values.ec2NodeClass.securityGroupTagSelectorKey }}: {{ .Values.karpenter.settings.clusterName }}
+  tags:
+    {{- toYaml .Values.ec2NodeClass.additionalTags | nindent 4 }}

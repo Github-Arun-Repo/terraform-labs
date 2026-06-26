@@ -65,6 +65,37 @@ variable "default_tags" {
   default     = {}
 }
 
+# -- GitHub Actions OIDC -------------------------------------------------------
+
+variable "github_actions_repository" {
+  description = "GitHub repository in owner/name format allowed to assume GitHub Actions OIDC roles."
+  type        = string
+  default     = "Github-Arun-Repo/terraform-labs"
+}
+
+variable "github_actions_ci_subs" {
+  description = "Exact GitHub OIDC sub claims allowed to assume the CI role (for example main branch or protected environments)."
+  type        = list(string)
+  default     = ["repo:Github-Arun-Repo/terraform-labs:ref:refs/heads/main"]
+}
+
+variable "github_actions_plan_subs" {
+  description = "Exact GitHub OIDC sub claims allowed to assume the Terraform plan read-only role."
+  type        = list(string)
+  default = [
+    "repo:Github-Arun-Repo/terraform-labs:ref:refs/heads/main",
+    "repo:Github-Arun-Repo/terraform-labs:pull_request",
+  ]
+}
+
+variable "github_actions_deploy_subs" {
+  description = "Exact GitHub OIDC sub claims allowed to assume the GitHub Actions deploy role used for cluster access."
+  type        = list(string)
+  default = [
+    "repo:Github-Arun-Repo/terraform-labs:ref:refs/heads/main",
+  ]
+}
+
 # -- ECR -----------------------------------------------------------------------
 
 variable "document_processor_ecr_repository_name" {
@@ -240,6 +271,18 @@ variable "document_review_sa_name" {
   default     = "document-review-service"
 }
 
+variable "user_management_sa_namespace" {
+  description = "Kubernetes namespace for user-management-service service account used with IRSA."
+  type        = string
+  default     = "user-management"
+}
+
+variable "user_management_sa_name" {
+  description = "Kubernetes service account name for user-management-service IRSA."
+  type        = string
+  default     = "user-management-service"
+}
+
 # -- RDS -----------------------------------------------------------------------
 
 variable "db_identifier" {
@@ -281,10 +324,10 @@ variable "db_username" {
   type        = string
 }
 
-variable "db_password" {
-  description = "Master password for the database. Provide via TF_VAR_db_password env var - do not commit to source control."
-  type        = string
-  sensitive   = true
+variable "db_manage_master_user_password" {
+  description = "Use RDS-managed master user password in Secrets Manager when supported by the selected engine/version."
+  type        = bool
+  default     = true
 }
 
 # -- EKS -----------------------------------------------------------------------
@@ -295,15 +338,21 @@ variable "eks_cluster_name" {
 }
 
 variable "eks_cluster_version" {
-  description = "Kubernetes version for the EKS cluster (e.g. '1.30')."
+  description = "Kubernetes version for the EKS cluster (e.g. '1.36')."
   type        = string
-  default     = "1.30"
+  default     = "1.36"
+}
+
+variable "eks_authentication_mode" {
+  description = "EKS cluster authentication mode: CONFIG_MAP, API_AND_CONFIG_MAP, or API."
+  type        = string
+  default     = "API_AND_CONFIG_MAP"
 }
 
 variable "eks_node_groups" {
   description = <<-EOT
-    Map of self-managed node group configurations.
-    Labels are injected as kubelet --node-labels at bootstrap time.
+    Map of EKS managed node group configurations.
+    Labels are applied to nodes via managed node group settings.
     Three groups are expected: api, worker, and batch (or any custom names).
     Use t3.micro (free-tier eligible) and keep sizes small for labs.
   EOT
@@ -336,5 +385,47 @@ variable "eks_node_groups" {
       max_size      = 2
       labels        = { role = "batch", tier = "app" }
     }
+  }
+}
+
+variable "use_pod_identity" {
+  description = "Enable EKS Pod Identity associations for supported workloads while retaining IRSA resources for migration safety."
+  type        = bool
+  default     = false
+}
+
+variable "eks_access_admin_principal_arns" {
+  description = "Additional IAM principal ARNs that should receive EKS cluster-admin access via access entries."
+  type        = list(string)
+  default     = []
+}
+
+variable "eks_access_ci_principal_arns" {
+  description = "Additional IAM principal ARNs that should receive EKS view access via access entries."
+  type        = list(string)
+  default     = []
+}
+
+variable "karpenter_enabled" {
+  description = "Enable Karpenter IAM/SQS resources and add a bootstrap managed node group for the Karpenter controller."
+  type        = bool
+  default     = false
+}
+
+variable "karpenter_bootstrap_node_group" {
+  description = "Managed node group kept for core system workloads (including Karpenter controller) when Karpenter is enabled."
+  type = object({
+    instance_type = string
+    desired_size  = number
+    min_size      = number
+    max_size      = number
+    labels        = map(string)
+  })
+  default = {
+    instance_type = "t3.small"
+    desired_size  = 1
+    min_size      = 1
+    max_size      = 2
+    labels        = { role = "system", tier = "platform" }
   }
 }

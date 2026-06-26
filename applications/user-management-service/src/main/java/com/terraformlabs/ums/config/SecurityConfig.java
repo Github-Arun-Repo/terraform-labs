@@ -1,6 +1,7 @@
 package com.terraformlabs.ums.config;
 
 import com.terraformlabs.ums.security.JwtAuthenticationFilter;
+import com.terraformlabs.ums.security.CorrelationIdFilter;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +27,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
+            CorrelationIdFilter correlationIdFilter,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             DaoAuthenticationProvider daoAuthenticationProvider,
             CorsConfigurationSource corsConfigurationSource
@@ -48,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/validate").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/auth/public-key").permitAll()
                         .anyRequest().authenticated())
+                    .addFilterBefore(correlationIdFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -74,7 +77,8 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(securityProperties.getCors().getAllowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Correlation-ID"));
+        configuration.setExposedHeaders(List.of("X-Correlation-ID"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

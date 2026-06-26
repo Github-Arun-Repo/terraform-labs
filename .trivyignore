@@ -1,0 +1,4 @@
+# Trivy ignore file
+# Add vulnerability IDs per line when a temporary exception is approved.
+# Example:
+# CVE-2099-12345

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":pinDigests",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "timezone": "UTC",
+  "enabledManagers": [
+    "maven",
+    "dockerfile",
+    "helm-values",
+    "helm-requirements",
+    "github-actions",
+    "terraform"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "pinDigests": true,
+      "groupName": "github actions"
+    },
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "groupName": "all non-major updates",
+      "groupSlug": "all-non-major"
+    },
+    {
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "separateMajorMinor": true,
+      "schedule": [
+        "before 5am on monday"
+      ],
+      "groupName": "major updates"
+    }
+  ],
+  "prConcurrentLimit": 10,
+  "prHourlyLimit": 4,
+  "labels": [
+    "dependencies",
+    "renovate"
+  ]
+}

@@ -20,6 +20,8 @@ helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
 app.kubernetes.io/name: {{ include "document-processor.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/version: {{ .Chart.AppVersion }}
+app.kubernetes.io/component: processor
+app.kubernetes.io/part-of: document-platform
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
@@ -34,4 +36,11 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- else -}}
 {{- default "default" .Values.serviceAccount.name -}}
 {{- end -}}
+{{- end -}}
+
+{{- define "document-processor.podAnnotations" -}}
+checksum/config: {{ toYaml .Values | sha256sum }}
+{{- with .Values.podAnnotations }}
+{{ toYaml . }}
+{{- end }}
 {{- end -}}

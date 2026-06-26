@@ -6,18 +6,23 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.UUID;
+import io.micrometer.tracing.BaggageInScope;
+import io.micrometer.tracing.Tracer;
 import org.slf4j.MDC;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
-@Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorrelationIdFilter extends OncePerRequestFilter {
 
     public static final String HEADER_NAME = "X-Correlation-ID";
+
+    private final Tracer tracer;
+
+    public CorrelationIdFilter(Tracer tracer) {
+        this.tracer = tracer;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -31,7 +36,7 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
         request.setAttribute(HEADER_NAME, correlationId);
         response.setHeader(HEADER_NAME, correlationId);
 
-        try {
+        try (BaggageInScope baggageInScope = tracer.createBaggageInScope("correlationId", correlationId)) {
             filterChain.doFilter(request, response);
         } finally {
             MDC.remove("correlationId");

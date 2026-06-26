@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: user-management-service
+  name: platform-root
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: terraform-labs
@@ -10,35 +10,19 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-
   source:
-    repoURL: https://github.com/your-org/terraform-labs.git
+    repoURL: https://github.com/Github-Arun-Repo/terraform-labs.git
     targetRevision: main
-    path: k8s/eks/user-management-service
-    helm:
-      valueFiles:
-        - values.yaml
-
+    path: cicd/argocd
+    directory:
+      recurse: true
+      exclude: root-app-of-apps.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: user-management
-
+    namespace: argocd
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true
       - ServerSideApply=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
-
-  ignoreDifferences:
-    - group: apps
-      kind: Deployment
-      jsonPointers:
-        - /spec/replicas

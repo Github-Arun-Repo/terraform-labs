@@ -2,7 +2,7 @@ Author: Arunasalam Govindasamy
 
 # Terraform Labs — AWS Multi-Tier Architecture
 
-> Fully modular Terraform code that provisions a production-style (free-tier friendly) AWS environment: **VPC → EKS (self-managed) → RDS MySQL**, fronted by an **Application Load Balancer** and backed by **S3 + DynamoDB** remote state.
+> Fully modular Terraform code that provisions a production-style (free-tier friendly) AWS environment: **VPC → EKS (managed node groups + managed addons) → RDS MySQL**, fronted by an **Application Load Balancer** and backed by **S3 + DynamoDB** remote state.
 
 ---
 
@@ -14,9 +14,13 @@ Author: Arunasalam Govindasamy
 4. [Traffic Flow — Request to Database](#4-traffic-flow--request-to-database)
 5. [Module Structure](#5-module-structure)
 6. [EKS Node Groups](#6-eks-node-groups)
-7. [Remote State Design](#7-remote-state-design)
-8. [Deployment Guide](#8-deployment-guide)
-9. [Cost Notes (Free Tier)](#9-cost-notes-free-tier)
+7. [EKS Upgrade Runbook (One Minor at a Time)](#7-eks-upgrade-runbook-one-minor-at-a-time)
+8. [Pod Identity vs IRSA](#8-pod-identity-vs-irsa)
+9. [Cluster Autoscaler vs Karpenter](#9-cluster-autoscaler-vs-karpenter)
+10. [EKS Access Entries Cutover](#10-eks-access-entries-cutover)
+11. [Remote State Design](#11-remote-state-design)
+12. [Deployment Guide](#12-deployment-guide)
+13. [Cost Notes (Free Tier)](#13-cost-notes-free-tier)
 
 ---
 
@@ -198,7 +202,7 @@ terraform/
 
 ## 6. EKS Node Groups
 
-Three **self-managed node groups** are provisioned via EC2 Launch Templates + Auto Scaling Groups. Labels are passed from `terraform.tfvars` down through the root module into the EKS module and injected as `--node-labels` in the bootstrap userdata.
+Node capacity is provisioned with **EKS managed node groups** using AL2023 and IMDSv2-required launch templates. Labels are passed from `terraform.tfvars` through the root module into the EKS module.
 
 ```mermaid
 %%{init: {'theme': 'default', 'flowchart': {'useMaxWidth': true, 'htmlLabels': true}}}%%
@@ -225,12 +229,68 @@ graph TB
 | `api` | t3.micro | 1 | 1 | 2 | `role=api, tier=app` |
 | `worker` | t3.micro | 1 | 1 | 2 | `role=worker, tier=app` |
 | `batch` | t3.micro | 1 | 0 | 2 | `role=batch, tier=app` |
+| `karpenter-bootstrap` (optional) | t3.small | 1 | 1 | 2 | `role=system, tier=platform` |
 
 All label **values** are configurable from `terraform.tfvars` via `eks_node_groups[*].labels`.
 
 ---
 
-## 7. Remote State Design
+## 7. EKS Upgrade Runbook (One Minor at a Time)
+
+As of this update, Amazon EKS standard support includes `1.33` through `1.36`, with `1.36` as latest. Use one-minor upgrades only.
+
+Upgrade sequence example for existing clusters:
+
+1. `1.33 -> 1.34`
+2. `1.34 -> 1.35`
+3. `1.35 -> 1.36`
+
+For each step:
+
+1. Change only `eks_cluster_version` in `terraform.tfvars`.
+2. Run `terraform plan` and apply the control-plane update.
+3. Apply addon updates (`vpc-cni`, `coredns`, `kube-proxy`, `aws-ebs-csi-driver`, `eks-pod-identity-agent`) managed by Terraform.
+4. Roll managed node groups to the matching version/AMI on apply.
+5. Verify `kubectl get nodes`, workload readiness, and ArgoCD sync.
+6. Scan for removed/deprecated APIs with tools such as `kubent` or `pluto` before the next bump.
+
+## 8. Pod Identity vs IRSA
+
+`use_pod_identity` defaults to `false` so IRSA remains the default path.
+
+- IRSA path: existing OIDC trust + `sub`/`aud` condition per service account.
+- Pod Identity path: enabled by setting `use_pod_identity=true`, creating `aws_eks_pod_identity_association` resources and dedicated pod-identity IAM roles.
+
+Recommended migration approach:
+
+1. Enable pod identity in a lower environment.
+2. Validate credential sourcing and AWS calls from workloads.
+3. Remove IRSA annotations/trust paths only after production validation.
+
+## 9. Cluster Autoscaler vs Karpenter
+
+- Cluster Autoscaler: mature, ASG-oriented, slower reaction and coarser bin-packing.
+- Karpenter: faster scheduling reaction, flexible instance selection (including Spot), better bin-packing efficiency.
+
+This repo adds optional Karpenter foundation resources behind `karpenter_enabled`:
+
+- Controller IAM role
+- Node IAM role + instance profile
+- Interruption SQS queue
+- Bootstrap managed node group retained for control-plane and Karpenter stability
+
+## 10. EKS Access Entries Cutover
+
+Access entries are managed in Terraform for admin and CI principals.
+
+Suggested cutover:
+
+1. Start with `eks_authentication_mode = "API_AND_CONFIG_MAP"`.
+2. Create and validate all required `aws_eks_access_entry` and `aws_eks_access_policy_association` resources.
+3. Confirm kubectl/CI access through API-based entries.
+4. Switch to `eks_authentication_mode = "API"` and remove legacy `aws-auth` dependencies.
+
+## 11. Remote State Design
 
 ```mermaid
 %%{init: {'theme': 'default', 'flowchart': {'useMaxWidth': true, 'htmlLabels': true}}}%%
@@ -263,7 +323,7 @@ flowchart LR
 
 ---
 
-## 8. Deployment Guide
+## 12. Deployment Guide
 
 ### Prerequisites
 - Terraform >= 1.9
@@ -297,11 +357,14 @@ backend "s3" {
 
 ```bash
 cd terraform
-export TF_VAR_db_password="YourStrongPassword123!"
 terraform init    # connects to S3 backend
 terraform plan
 terraform apply
 ```
+
+RDS master credentials are now stored in AWS Secrets Manager. Keep
+`db_manage_master_user_password = true` (default) to use the RDS-managed
+rotation-capable secret.
 
 This root stack provisions an ECR repository for document-processor images. Useful outputs after apply:
 
@@ -328,7 +391,7 @@ kubectl get nodes --show-labels
 
 ---
 
-## 9. Cost Notes (Free Tier)
+## 13. Cost Notes (Free Tier)
 
 | Resource | Free-tier config | Potential cost if exceeded |
 |----------|-----------------|---------------------------|

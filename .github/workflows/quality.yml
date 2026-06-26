@@ -1,0 +1,78 @@
+name: Quality
+
+on:
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install actionlint
+        run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+
+      - name: Run actionlint
+        run: |
+          "$(go env GOPATH)/bin/actionlint" -color
+
+  helm-quality:
+    name: Helm Lint, Render, and Schema Validation
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Setup kubeconform
+        run: |
+          set -euo pipefail
+          KUBECONFORM_VERSION="v0.6.7"
+          curl -sSL -o /tmp/kubeconform.tar.gz "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          tar -xzf /tmp/kubeconform.tar.gz -C /tmp kubeconform
+          sudo mv /tmp/kubeconform /usr/local/bin/kubeconform
+          kubeconform -v
+
+      - name: Lint all charts
+        run: |
+          set -euo pipefail
+          for chart in k8s/eks/document-api-service k8s/eks/document-processing-service k8s/eks/document-processor k8s/eks/document-review-service k8s/eks/user-management-service k8s/policy/kyverno; do
+            echo "Linting ${chart}"
+            helm lint "${chart}"
+          done
+
+      - name: Render and validate manifests
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/rendered
+
+          render_and_validate() {
+            local name="$1"
+            local chart="$2"
+            local out="/tmp/rendered/${name}.yaml"
+
+            echo "Rendering ${chart}"
+            helm template "${name}" "${chart}" > "${out}"
+            echo "Validating ${out}"
+            kubeconform -strict -summary -ignore-missing-schemas "${out}"
+          }
+
+          render_and_validate "document-api-service" "k8s/eks/document-api-service"
+          render_and_validate "document-processing-service" "k8s/eks/document-processing-service"
+          render_and_validate "document-processor" "k8s/eks/document-processor"
+          render_and_validate "document-review-service" "k8s/eks/document-review-service"
+          render_and_validate "user-management-service" "k8s/eks/user-management-service"
+          render_and_validate "kyverno-policies" "k8s/policy/kyverno"

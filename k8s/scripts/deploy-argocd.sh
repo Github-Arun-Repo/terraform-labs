@@ -6,8 +6,8 @@
 # Usage:
 #   ./k8s/scripts/deploy-argocd.sh
 #
-# After installation apply service Application manifests so ArgoCD starts
-# managing the deployments.
+# After installation apply the root app-of-apps manifest so ArgoCD starts
+# managing all platform Applications and the EKS services ApplicationSet.
 #
 # Retrieve the initial admin password:
 #   kubectl get secret -n argocd argocd-initial-admin-secret \
@@ -52,6 +52,5 @@ echo "Initial admin password:"
 echo "  kubectl get secret -n ${NAMESPACE} argocd-initial-admin-secret \\"
 echo "    -o jsonpath='{.data.password}' | base64 -d && echo"
 echo ""
-echo "Apply service Applications (example):"
-echo "  kubectl apply -f cicd/argocd/document-api-service-application.yaml"
-echo "  kubectl apply -f cicd/argocd/document-processor-application.yaml"
+echo "Apply the root app-of-apps (recommended):"
+echo "  kubectl apply -f cicd/argocd/root-app-of-apps.yaml"

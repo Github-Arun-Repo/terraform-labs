@@ -6,9 +6,15 @@ variable "cluster_name" {
 }
 
 variable "cluster_version" {
-  description = "Kubernetes version for the EKS cluster (e.g. '1.30')."
+  description = "Kubernetes version for the EKS cluster (e.g. '1.36')."
   type        = string
-  default     = "1.30"
+  default     = "1.36"
+}
+
+variable "authentication_mode" {
+  description = "EKS authentication mode: CONFIG_MAP, API_AND_CONFIG_MAP, or API."
+  type        = string
+  default     = "API_AND_CONFIG_MAP"
 }
 
 variable "vpc_id" {
@@ -28,8 +34,8 @@ variable "alb_security_group_id" {
 
 variable "node_groups" {
   description = <<-EOT
-    Map of self-managed node group definitions.
-    Each key becomes the group name. Labels are applied as kubelet node labels.
+    Map of EKS managed node group definitions.
+    Each key becomes the node group name. Labels are applied at the node group level.
     Example:
       {
         api = {

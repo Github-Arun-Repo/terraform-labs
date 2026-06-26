@@ -29,6 +29,17 @@ management:
   tracing:
     sampling:
       probability: 1.0
+    baggage:
+      remote-fields: correlationId
+      correlation:
+        fields: correlationId
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://otel-collector.observability.svc.cluster.local:4318}
+    metrics:
+      export:
+        enabled: ${MANAGEMENT_OTLP_METRICS_ENABLED:true}
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:${OTEL_EXPORTER_OTLP_ENDPOINT:http://otel-collector.observability.svc.cluster.local:4318}/v1/metrics}
 
 aws:
   region: ${AWS_REGION:eu-central-1}
@@ -62,4 +73,4 @@ logging:
   level:
     root: ${LOG_LEVEL:INFO}
   pattern:
-    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss}","level":"%p","service":"document-api-service","traceId":"%X{traceId}","spanId":"%X{spanId}","message":"%msg"}%n'
+    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss}","level":"%p","service":"document-api-service","traceId":"%X{traceId}","spanId":"%X{spanId}","correlationId":"%X{correlationId}","message":"%msg"}%n'

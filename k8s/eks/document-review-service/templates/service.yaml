@@ -11,4 +11,4 @@ spec:
       port: {{ .Values.service.port }}
       targetPort: {{ .Values.service.targetPort }}
   selector:
-    app.kubernetes.io/name: {{ include "document-review-service.name" . }}
+    {{- include "document-review-service.selectorLabels" . | nindent 4 }}

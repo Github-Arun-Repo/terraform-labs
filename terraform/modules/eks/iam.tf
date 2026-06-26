@@ -67,13 +67,6 @@ resource "aws_iam_role_policy_attachment" "node_AmazonEC2ContainerRegistryReadOn
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-resource "aws_iam_instance_profile" "node" {
-  name_prefix = "${var.cluster_name}-node-"
-  role        = aws_iam_role.node.name
-
-  tags = merge(var.tags, { Name = "${var.cluster_name}-node-profile" })
-}
-
 # -- OIDC Provider (required for IRSA) ----------------------------------------
 # The TLS thumbprint is fetched from the OIDC issuer endpoint and locked in
 # so the provider trust relationship is not sensitive to CA rotations.
@@ -88,5 +81,43 @@ resource "aws_iam_openid_connect_provider" "eks" {
   url             = aws_eks_cluster.this.identity[0].oidc[0].issuer
 
   tags = merge(var.tags, { Name = "${var.cluster_name}-oidc-provider" })
+}
+
+# -- EBS CSI Addon IRSA Role --------------------------------------------------
+
+data "aws_iam_policy_document" "ebs_csi_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.eks.arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${trimprefix(aws_eks_cluster.this.identity[0].oidc[0].issuer, "https://")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${trimprefix(aws_eks_cluster.this.identity[0].oidc[0].issuer, "https://")}:sub"
+      values   = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
+    }
+  }
+}
+
+resource "aws_iam_role" "ebs_csi_controller" {
+  name_prefix        = "${var.cluster_name}-ebs-csi-"
+  assume_role_policy = data.aws_iam_policy_document.ebs_csi_assume_role.json
+
+  tags = merge(var.tags, { Name = "${var.cluster_name}-ebs-csi-role" })
+}
+
+resource "aws_iam_role_policy_attachment" "ebs_csi_AmazonEBSCSIDriverPolicy" {
+  role       = aws_iam_role.ebs_csi_controller.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }
 

@@ -134,6 +134,11 @@ output "rds_security_group_id" {
   value       = module.rds.rds_security_group_id
 }
 
+output "rds_master_user_secret_arn" {
+  description = "Secrets Manager ARN containing RDS master credentials."
+  value       = module.rds.master_user_secret_arn
+}
+
 # -- EKS Outputs ---------------------------------------------------------------
 
 output "eks_cluster_name" {
@@ -157,7 +162,7 @@ output "alb_security_group_id" {
 }
 
 output "eks_node_groups" {
-  description = "Map of node group name -> ASG name."
+  description = "Map of node group name -> backing ASG name (managed by EKS)."
   value       = module.eks.autoscaling_group_names
 }
 
@@ -186,5 +191,82 @@ output "document_api_service_role_arn" {
 output "document_review_service_role_arn" {
   description = "IRSA role ARN to annotate on the document-review-service Kubernetes ServiceAccount."
   value       = aws_iam_role.document_review_service.arn
+}
+
+output "user_management_service_role_arn" {
+  description = "IRSA role ARN to annotate on the user-management-service Kubernetes ServiceAccount."
+  value       = aws_iam_role.user_management_service.arn
+}
+
+# -- GitHub Actions OIDC Outputs ----------------------------------------------
+
+output "github_actions_ci_role_arn" {
+  description = "IAM role ARN assumed by GitHub Actions CI jobs for ECR push/pull operations."
+  value       = aws_iam_role.github_actions_ci.arn
+}
+
+output "github_actions_plan_role_arn" {
+  description = "IAM role ARN assumed by GitHub Actions Terraform plan jobs with read-only access."
+  value       = aws_iam_role.github_actions_plan.arn
+}
+
+output "github_actions_deploy_role_arn" {
+  description = "IAM role ARN assumed by GitHub Actions deploy jobs for EKS access-entry based cluster operations."
+  value       = aws_iam_role.github_actions_deploy.arn
+}
+
+output "eks_authentication_mode" {
+  description = "Current EKS authentication mode for access entry cutover planning."
+  value       = var.eks_authentication_mode
+}
+
+output "eks_addon_versions" {
+  description = "EKS managed addon versions selected by Terraform for the cluster version."
+  value       = module.eks.eks_addon_versions
+}
+
+output "ebs_csi_role_arn" {
+  description = "IAM role ARN used by the managed aws-ebs-csi-driver addon."
+  value       = module.eks.ebs_csi_role_arn
+}
+
+output "pod_identity_enabled" {
+  description = "Whether the optional Pod Identity migration path is enabled."
+  value       = var.use_pod_identity
+}
+
+output "document_api_service_pod_identity_role_arn" {
+  description = "Pod Identity role ARN for document-api-service when use_pod_identity=true."
+  value       = try(aws_iam_role.document_api_service_pod_identity[0].arn, null)
+}
+
+output "document_processing_service_pod_identity_role_arn" {
+  description = "Pod Identity role ARN for document-processing-service when use_pod_identity=true."
+  value       = try(aws_iam_role.document_processing_service_pod_identity[0].arn, null)
+}
+
+output "document_review_service_pod_identity_role_arn" {
+  description = "Pod Identity role ARN for document-review-service when use_pod_identity=true."
+  value       = try(aws_iam_role.document_review_service_pod_identity[0].arn, null)
+}
+
+output "karpenter_enabled" {
+  description = "Whether Karpenter infrastructure resources are enabled."
+  value       = var.karpenter_enabled
+}
+
+output "karpenter_controller_role_arn" {
+  description = "IAM role ARN for the Karpenter controller when karpenter_enabled=true."
+  value       = try(aws_iam_role.karpenter_controller[0].arn, null)
+}
+
+output "karpenter_node_role_arn" {
+  description = "IAM role ARN for Karpenter-provisioned worker nodes when karpenter_enabled=true."
+  value       = try(aws_iam_role.karpenter_node[0].arn, null)
+}
+
+output "karpenter_interruption_queue_name" {
+  description = "SQS queue name used by Karpenter interruption handling when karpenter_enabled=true."
+  value       = try(aws_sqs_queue.karpenter_interruption[0].name, null)
 }
 

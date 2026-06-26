@@ -15,7 +15,7 @@
 #   2. The repository URL below matches your actual Git remote.
 #   3. A gp3 StorageClass must exist in the cluster (used for Prometheus PVC).
 #   4. If the repository is private, register it in ArgoCD first:
-#        argocd repo add https://github.com/your-org/terraform-labs.git \
+#        argocd repo add https://github.com/Github-Arun-Repo/terraform-labs.git \
 #          --username <user> --password <token>
 
 apiVersion: argoproj.io/v1alpha1
@@ -36,7 +36,7 @@ spec:
     # ---------------------------------------------------------------------------
     # Update repoURL to your actual repository before applying this manifest.
     # ---------------------------------------------------------------------------
-    repoURL: https://github.com/your-org/terraform-labs.git
+    repoURL: https://github.com/Github-Arun-Repo/terraform-labs.git
     targetRevision: main
     path: k8s/prometheus/kube-prometheus-stack
 

@@ -1,0 +1,28 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-images-gha-cosign
+  annotations:
+    policies.kyverno.io/title: Verify signed images
+    policies.kyverno.io/category: Supply Chain
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: {{ .Values.policyValidationFailureAction }}
+  background: false
+  webhookTimeoutSeconds: 30
+  rules:
+    - name: verify-cosign-signatures
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      verifyImages:
+        - imageReferences:
+            - "*.dkr.ecr.*.amazonaws.com/*"
+          mutateDigest: false
+          attestors:
+            - entries:
+                - keyless:
+                    issuer: {{ .Values.cosignOidcIssuer | quote }}
+                    subjectRegExp: {{ .Values.cosignCertificateIdentityRegex | quote }}

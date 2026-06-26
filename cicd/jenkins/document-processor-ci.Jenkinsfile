@@ -7,7 +7,8 @@
 //      ArgoCD detects the change and drives deployment automatically.
 //
 // Deployment is NOT performed here - it is owned by ArgoCD via the
-// GitOps manifest at cicd/argocd/document-processor-application.yaml.
+// GitOps definitions in cicd/argocd/root-app-of-apps.yaml and
+// cicd/argocd/eks-services-applicationset.yaml.
 
 pipeline {
   agent none

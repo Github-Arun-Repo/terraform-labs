@@ -1,28 +1,25 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: document-review-service
+  name: kyverno
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: terraform-labs
     app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/component: policy
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-
   source:
-    repoURL: https://github.com/your-org/terraform-labs.git
-    targetRevision: main
-    path: k8s/eks/document-review-service
+    repoURL: https://kyverno.github.io/kyverno/
+    chart: kyverno
+    targetRevision: 3.2.6
     helm:
-      valueFiles:
-        - values.yaml
-
+      releaseName: kyverno
   destination:
     server: https://kubernetes.default.svc
-    namespace: document-review
-
+    namespace: kyverno
   syncPolicy:
     automated:
       prune: true
@@ -30,15 +27,3 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
-
-  ignoreDifferences:
-    - group: apps
-      kind: Deployment
-      jsonPointers:
-        - /spec/replicas

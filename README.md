@@ -126,7 +126,7 @@ cd ../k8s
 ./scripts/deploy-all.sh
 
 # 3. Register active applications with ArgoCD (GitOps takes over from here)
-kubectl apply -f ../cicd/argocd/document-processor-application.yaml
+kubectl apply -f ../cicd/argocd/root-app-of-apps.yaml
 
 # 4. Verify
 kubectl get all -n document-processor
@@ -167,7 +167,8 @@ kubectl get app document-processor -n argocd
     ├── jenkins/
     │   └── document-processor-ci.Jenkinsfile  # CI pipeline (build, test, push, tag commit)
     └── argocd/
-        └── document-processor-application.yaml # ArgoCD Application — GitOps deployment
+      ├── root-app-of-apps.yaml               # Root GitOps entrypoint
+      └── eks-services-applicationset.yaml    # Generates EKS service Applications
 ```
 
 ---

@@ -30,14 +30,9 @@ output "node_iam_role_arn" {
   value       = aws_iam_role.node.arn
 }
 
-output "node_iam_instance_profile_arn" {
-  description = "ARN of the EC2 instance profile for worker nodes."
-  value       = aws_iam_instance_profile.node.arn
-}
-
 output "autoscaling_group_names" {
-  description = "Map of node group name -> ASG name."
-  value       = { for k, v in aws_autoscaling_group.node_group : k => v.name }
+  description = "Map of node group name -> backing ASG name managed by EKS."
+  value       = { for k, v in aws_eks_node_group.node_group : k => v.resources[0].autoscaling_groups[0].name }
 }
 
 output "oidc_provider_arn" {
@@ -48,5 +43,21 @@ output "oidc_provider_arn" {
 output "oidc_issuer_url" {
   description = "HTTPS OIDC issuer URL for this EKS cluster (without trailing slash)."
   value       = aws_eks_cluster.this.identity[0].oidc[0].issuer
+}
+
+output "ebs_csi_role_arn" {
+  description = "IAM role ARN used by the aws-ebs-csi-driver managed addon."
+  value       = aws_iam_role.ebs_csi_controller.arn
+}
+
+output "eks_addon_versions" {
+  description = "Managed EKS addon versions selected for the current cluster version."
+  value = {
+    vpc_cni            = aws_eks_addon.vpc_cni.addon_version
+    coredns            = aws_eks_addon.coredns.addon_version
+    kube_proxy         = aws_eks_addon.kube_proxy.addon_version
+    aws_ebs_csi_driver = aws_eks_addon.aws_ebs_csi_driver.addon_version
+    pod_identity_agent = aws_eks_addon.eks_pod_identity_agent.addon_version
+  }
 }
 

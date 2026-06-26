@@ -54,10 +54,10 @@ variable "db_username" {
   type        = string
 }
 
-variable "db_password" {
-  description = "Master password for the database. Use a secrets manager in production."
-  type        = string
-  sensitive   = true
+variable "manage_master_user_password" {
+  description = "Use RDS-managed master user password in Secrets Manager when supported."
+  type        = bool
+  default     = true
 }
 
 variable "tags" {

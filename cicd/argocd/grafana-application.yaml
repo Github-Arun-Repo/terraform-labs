@@ -24,7 +24,7 @@
 #          --from-literal=admin-password=<your-password> \
 #          -n monitoring
 #   5. If the repository is private, register it in ArgoCD first:
-#        argocd repo add https://github.com/your-org/terraform-labs.git \
+#        argocd repo add https://github.com/Github-Arun-Repo/terraform-labs.git \
 #          --username <user> --password <token>
 
 apiVersion: argoproj.io/v1alpha1
@@ -45,7 +45,7 @@ spec:
     # ---------------------------------------------------------------------------
     # Update repoURL to your actual repository before applying this manifest.
     # ---------------------------------------------------------------------------
-    repoURL: https://github.com/your-org/terraform-labs.git
+    repoURL: https://github.com/Github-Arun-Repo/terraform-labs.git
     targetRevision: main
     path: k8s/grafana/grafana
 

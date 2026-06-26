@@ -1,0 +1,26 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-irsa-annotation
+  annotations:
+    policies.kyverno.io/title: Require IRSA annotation
+    policies.kyverno.io/category: IAM
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: {{ .Values.policyValidationFailureAction }}
+  background: true
+  rules:
+    - name: require-eks-role-arn
+      match:
+        any:
+          - resources:
+              kinds:
+                - ServiceAccount
+              namespaces:
+                {{- toYaml .Values.requireIrsaNamespaces | nindent 16 }}
+      validate:
+        message: ServiceAccount must include eks.amazonaws.com/role-arn annotation.
+        pattern:
+          metadata:
+            annotations:
+              eks.amazonaws.com/role-arn: "arn:aws:iam::*:role/*"

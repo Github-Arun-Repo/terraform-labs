@@ -1,0 +1,10 @@
+kyvernoNamespace: kyverno
+policyValidationFailureAction: Audit
+cosignOidcIssuer: https://token.actions.githubusercontent.com
+cosignCertificateIdentityRegex: https://github.com/.*/terraform-labs/.github/workflows/ci-services.yml@refs/heads/main
+requireIrsaNamespaces:
+  - document-api
+  - document-processing
+  - document-review
+  - document-processor
+  - user-management

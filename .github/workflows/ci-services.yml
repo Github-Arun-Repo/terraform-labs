@@ -1,0 +1,257 @@
+name: CI Services
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: write
+  id-token: write
+  security-events: write
+  attestations: write
+
+jobs:
+  build-test-push:
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
+    name: Build/Test/Push (${{ matrix.service }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: document-api-service
+            app_dir: applications/document-api-service
+          - service: document-processing-service
+            app_dir: applications/document-processing-service
+          - service: document-review-service
+            app_dir: applications/document-review-service
+          - service: user-management-service
+            app_dir: applications/user-management-service
+          - service: document-processor
+            app_dir: applications/document-processor
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ROLE_TO_ASSUME_CI: ${{ vars.AWS_ROLE_TO_ASSUME_CI }}
+      ECR_REPOSITORY_DOCUMENT_API_SERVICE: ${{ vars.ECR_REPOSITORY_DOCUMENT_API_SERVICE }}
+      ECR_REPOSITORY_DOCUMENT_PROCESSING_SERVICE: ${{ vars.ECR_REPOSITORY_DOCUMENT_PROCESSING_SERVICE }}
+      ECR_REPOSITORY_DOCUMENT_REVIEW_SERVICE: ${{ vars.ECR_REPOSITORY_DOCUMENT_REVIEW_SERVICE }}
+      ECR_REPOSITORY_USER_MANAGEMENT_SERVICE: ${{ vars.ECR_REPOSITORY_USER_MANAGEMENT_SERVICE }}
+      ECR_REPOSITORY_DOCUMENT_PROCESSOR: ${{ vars.ECR_REPOSITORY_DOCUMENT_PROCESSOR }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Run Maven tests
+        working-directory: ${{ matrix.app_dir }}
+        run: mvn -B clean verify
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME_CI }}
+          role-session-name: gh-ci-${{ matrix.service }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set image metadata
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${GITHUB_SHA::12}"
+          IMAGE_TAG="${SHORT_SHA}-${GITHUB_RUN_NUMBER}"
+
+          case "${{ matrix.service }}" in
+            document-api-service)
+              ECR_REPOSITORY_URI="${ECR_REPOSITORY_DOCUMENT_API_SERVICE}"
+              ;;
+            document-processing-service)
+              ECR_REPOSITORY_URI="${ECR_REPOSITORY_DOCUMENT_PROCESSING_SERVICE}"
+              ;;
+            document-review-service)
+              ECR_REPOSITORY_URI="${ECR_REPOSITORY_DOCUMENT_REVIEW_SERVICE}"
+              ;;
+            user-management-service)
+              ECR_REPOSITORY_URI="${ECR_REPOSITORY_USER_MANAGEMENT_SERVICE}"
+              ;;
+            document-processor)
+              ECR_REPOSITORY_URI="${ECR_REPOSITORY_DOCUMENT_PROCESSOR}"
+              ;;
+            *)
+              echo "Unsupported service: ${{ matrix.service }}" >&2
+              exit 1
+              ;;
+          esac
+
+          if [[ -z "${ECR_REPOSITORY_URI}" ]]; then
+            echo "Missing ECR repository URI variable for ${{ matrix.service }}" >&2
+            exit 1
+          fi
+
+          echo "image_repo=${ECR_REPOSITORY_URI}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "image_uri=${ECR_REPOSITORY_URI}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push container image
+        id: build_image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.app_dir }}
+          file: ${{ matrix.app_dir }}/Dockerfile
+          push: true
+          tags: ${{ steps.image.outputs.image_uri }}
+
+      - name: Trivy fail on fixable HIGH/CRITICAL
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ steps.image.outputs.image_uri }}
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          vuln-type: os,library
+
+      - name: Generate CycloneDX SBOM
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ steps.image.outputs.image_uri }}
+          format: cyclonedx
+          output: sbom-${{ matrix.service }}.cdx.json
+          exit-code: '0'
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3.8.1
+
+      - name: Sign image with cosign keyless
+        env:
+          COSIGN_YES: "true"
+        run: |
+          cosign sign "${{ steps.image.outputs.image_repo }}@${{ steps.build_image.outputs.digest }}"
+
+      - name: Attest image SBOM with cosign keyless
+        env:
+          COSIGN_YES: "true"
+        run: |
+          cosign attest \
+            --type cyclonedx \
+            --predicate "sbom-${{ matrix.service }}.cdx.json" \
+            "${{ steps.image.outputs.image_repo }}@${{ steps.build_image.outputs.digest }}"
+
+      - name: Generate SLSA provenance attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ steps.image.outputs.image_repo }}
+          subject-digest: ${{ steps.build_image.outputs.digest }}
+          push-to-registry: true
+
+      - name: Trivy SARIF report
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: ${{ steps.image.outputs.image_uri }}
+          format: sarif
+          output: trivy-${{ matrix.service }}.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+          vuln-type: os,library
+
+      - name: Upload Trivy SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.service }}.sarif
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.service }}-${{ steps.image.outputs.image_tag }}
+          path: sbom-${{ matrix.service }}.cdx.json
+          if-no-files-found: error
+
+      - name: Print published image
+        run: echo "Published ${{ steps.image.outputs.image_uri }}"
+
+  gitops-writeback:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip ci]')
+    name: GitOps Tag Write-Back (${{ matrix.service }})
+    needs: build-test-push
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        service:
+          - document-api-service
+          - document-processing-service
+          - document-review-service
+          - user-management-service
+          - document-processor
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install yq
+        run: |
+          set -euo pipefail
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/download/v4.44.3/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Update Helm values image tag via yq
+        env:
+          TAG: ${{ github.sha }}-${{ github.run_number }}
+          SERVICE: ${{ matrix.service }}
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${TAG%%-*}"
+          SHORT_SHA="${SHORT_SHA:0:12}"
+          FINAL_TAG="${SHORT_SHA}-${GITHUB_RUN_NUMBER}"
+          VALUES_FILE="k8s/eks/${SERVICE}/values.yaml"
+          TAG="${FINAL_TAG}"
+          export TAG
+          yq -i '.image.tag = strenv(TAG)' "${VALUES_FILE}"
+
+      - name: Commit and push write-back
+        env:
+          SERVICE: ${{ matrix.service }}
+        run: |
+          set -euo pipefail
+          VALUES_FILE="k8s/eks/${SERVICE}/values.yaml"
+          if git diff --quiet -- "${VALUES_FILE}"; then
+            echo "No tag change for ${SERVICE}; skipping commit"
+            exit 0
+          fi
+
+          NEW_TAG=$(yq '.image.tag' "${VALUES_FILE}")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${VALUES_FILE}"
+          git commit -m "[skip ci] chore(gitops): update ${SERVICE} image tag to ${NEW_TAG}"
+
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "Push failed on attempt ${attempt}; retrying"
+          done
+
+          echo "Failed to push GitOps tag write-back after retries" >&2
+          exit 1

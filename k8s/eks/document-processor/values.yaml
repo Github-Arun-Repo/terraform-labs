@@ -2,18 +2,37 @@ replicaCount: 2
 
 image:
   repository: your-account-id.dkr.ecr.your-region.amazonaws.com/document-processor
-  tag: latest
+  tag: "REPLACED_BY_CI"
   pullPolicy: IfNotPresent
 
 nameOverride: ""
 fullnameOverride: "document-processor"
 
 serviceAccount:
-  create: false
-  name: ""
+  create: true
+  name: document-processor
+  annotations:
+    # TODO: set from terraform output once document-processor IRSA role is added
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/document-processor-irsa
 
 podAnnotations: {}
 podLabels: {}
+
+revisionHistoryLimit: 10
+
+deploymentStrategy:
+  maxSurge: 25%
+  maxUnavailable: 25%
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector: {}
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector: {}
 
 service:
   type: ClusterIP
@@ -27,6 +46,47 @@ resources:
   limits:
     cpu: 500m
     memory: 512Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+probes:
+  startup:
+    path: /actuator/health/readiness
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 30
+  readiness:
+    path: /actuator/health/readiness
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+  liveness:
+    path: /actuator/health/liveness
+    initialDelaySeconds: 20
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+networkPolicy:
+  enabled: false
+  allowedIngressNamespaces:
+    - ingress-nginx
+    - kube-system
+  prometheusNamespace: monitoring
 
 env:
   - name: SERVER_PORT

@@ -1,27 +1,28 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: document-api-service
+  name: karpenter
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: terraform-labs
     app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/component: autoscaling
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
 
   source:
-    repoURL: https://github.com/your-org/terraform-labs.git
+    repoURL: https://github.com/Github-Arun-Repo/terraform-labs.git
     targetRevision: main
-    path: k8s/eks/document-api-service
+    path: k8s/karpenter/karpenter
     helm:
       valueFiles:
         - values.yaml
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: document-api
+    namespace: karpenter
 
   syncPolicy:
     automated:
@@ -30,15 +31,3 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
-
-  ignoreDifferences:
-    - group: apps
-      kind: Deployment
-      jsonPointers:
-        - /spec/replicas

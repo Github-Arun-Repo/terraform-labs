@@ -12,7 +12,7 @@ spec:
       - {{ .Release.Namespace }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ include "document-processing-service.name" . }}
+      {{- include "document-processing-service.selectorLabels" . | nindent 6 }}
   endpoints:
     - path: /actuator/prometheus
       interval: 15s

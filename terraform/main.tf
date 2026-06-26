@@ -97,17 +97,24 @@ resource "aws_vpc_security_group_egress_rule" "alb_egress" {
 
 # -- EKS Module ----------------------------------------------------------------
 
+locals {
+  effective_eks_node_groups = var.karpenter_enabled ? merge({
+    "karpenter-bootstrap" = var.karpenter_bootstrap_node_group
+  }, var.eks_node_groups) : var.eks_node_groups
+}
+
 module "eks" {
   source = "./modules/eks"
 
   cluster_name    = var.eks_cluster_name
   cluster_version = var.eks_cluster_version
+  authentication_mode = var.eks_authentication_mode
   vpc_id          = module.vpc.vpc_id
 
   private_app_subnet_ids = module.vpc.private_app_subnet_ids
   alb_security_group_id  = aws_security_group.alb.id
 
-  node_groups = var.eks_node_groups
+  node_groups = local.effective_eks_node_groups
 
   tags = var.default_tags
 }
@@ -154,6 +161,139 @@ resource "aws_sqs_queue" "document_ingestion_queue" {
 
 data "aws_caller_identity" "current" {}
 data "aws_partition" "current" {}
+
+# -- GitHub Actions OIDC Federation -------------------------------------------
+
+data "tls_certificate" "github_actions_oidc" {
+  url = "https://token.actions.githubusercontent.com"
+}
+
+resource "aws_iam_openid_connect_provider" "github_actions" {
+  url             = "https://token.actions.githubusercontent.com"
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.github_actions_oidc.certificates[0].sha1_fingerprint]
+
+  tags = merge(var.default_tags, { Name = "github-actions-oidc-provider" })
+}
+
+data "aws_iam_policy_document" "github_actions_ci_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github_actions.arn]
+    }
+
+    # Restrict assume-role to this repository and approved CI subjects.
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = var.github_actions_ci_subs
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:repository"
+      values   = [var.github_actions_repository]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_actions_ci" {
+  name_prefix        = "github-actions-ci-"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_ci_assume_role.json
+
+  tags = merge(var.default_tags, { Name = "github-actions-ci" })
+}
+
+data "aws_iam_policy_document" "github_actions_ci_ecr" {
+  statement {
+    effect    = "Allow"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:CompleteLayerUpload",
+      "ecr:InitiateLayerUpload",
+      "ecr:PutImage",
+      "ecr:UploadLayerPart",
+      "ecr:BatchGetImage",
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:DescribeImages",
+      "ecr:DescribeRepositories",
+      "ecr:ListImages",
+    ]
+    resources = [module.document_processor_ecr.repository_arn]
+  }
+}
+
+resource "aws_iam_policy" "github_actions_ci_ecr" {
+  name_prefix = "github-actions-ci-ecr-"
+  description = "Allows GitHub Actions CI role to push and pull images for the document-processor ECR repository."
+  policy      = data.aws_iam_policy_document.github_actions_ci_ecr.json
+
+  tags = merge(var.default_tags, { Name = "github-actions-ci-ecr-policy" })
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_ci_ecr" {
+  role       = aws_iam_role.github_actions_ci.name
+  policy_arn = aws_iam_policy.github_actions_ci_ecr.arn
+}
+
+data "aws_iam_policy_document" "github_actions_plan_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github_actions.arn]
+    }
+
+    # Restrict assume-role to this repository and approved Terraform plan subjects.
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = var.github_actions_plan_subs
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:repository"
+      values   = [var.github_actions_repository]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_actions_plan" {
+  name_prefix        = "github-actions-plan-"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_plan_assume_role.json
+
+  tags = merge(var.default_tags, { Name = "github-actions-plan" })
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_plan_readonly" {
+  role       = aws_iam_role.github_actions_plan.name
+  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+}
 
 data "aws_iam_policy_document" "allow_s3_to_send_document_events" {
   statement {
@@ -306,7 +446,7 @@ module "rds" {
 
   db_name     = var.db_name
   db_username = var.db_username
-  db_password = var.db_password
+  manage_master_user_password = var.db_manage_master_user_password
 
   tags = var.default_tags
 }
@@ -324,6 +464,8 @@ locals {
   document_processing_sa_name      = var.document_processing_sa_name
   document_review_sa_namespace     = var.document_review_sa_namespace
   document_review_sa_name          = var.document_review_sa_name
+  user_management_sa_namespace     = var.user_management_sa_namespace
+  user_management_sa_name          = var.user_management_sa_name
   # Strip the https:// scheme – AWS condition keys use the bare host/path form
   oidc_issuer_host = trimprefix(module.eks.oidc_issuer_url, "https://")
 }
@@ -657,4 +799,61 @@ resource "aws_iam_policy" "document_review_access" {
 resource "aws_iam_role_policy_attachment" "document_review_access" {
   role       = aws_iam_role.document_review_service.name
   policy_arn = aws_iam_policy.document_review_access.arn
+}
+
+# -- IRSA: user-management-service -> RDS master secret -----------------------
+
+data "aws_iam_policy_document" "user_management_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [module.eks.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_host}:sub"
+      values   = ["system:serviceaccount:${local.user_management_sa_namespace}:${local.user_management_sa_name}"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${local.oidc_issuer_host}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "user_management_service" {
+  name_prefix        = "user-management-service-"
+  assume_role_policy = data.aws_iam_policy_document.user_management_assume_role.json
+
+  tags = merge(var.default_tags, { Name = "user-management-service-irsa" })
+}
+
+data "aws_iam_policy_document" "user_management_secrets_access" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "secretsmanager:GetSecretValue",
+      "secretsmanager:DescribeSecret",
+    ]
+    resources = [module.rds.master_user_secret_arn]
+  }
+}
+
+resource "aws_iam_policy" "user_management_secrets_access" {
+  name_prefix = "user-management-secrets-"
+  description = "Allows user-management-service IRSA role to read RDS master credentials from Secrets Manager."
+  policy      = data.aws_iam_policy_document.user_management_secrets_access.json
+
+  tags = merge(var.default_tags, { Name = "user-management-secrets-policy" })
+}
+
+resource "aws_iam_role_policy_attachment" "user_management_secrets_access" {
+  role       = aws_iam_role.user_management_service.name
+  policy_arn = aws_iam_policy.user_management_secrets_access.arn
 }

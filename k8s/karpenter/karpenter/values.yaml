@@ -1,0 +1,34 @@
+karpenter:
+  settings:
+    clusterName: my-app-eks
+    clusterEndpoint: https://REPLACE_ME
+    interruptionQueue: my-app-eks-karpenter-interruption
+  serviceAccount:
+    create: true
+    name: karpenter
+    annotations:
+      # TODO: set from terraform output karpenter_controller_role_arn
+      eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/karpenter-controller-placeholder
+
+nodePool:
+  name: default
+  limits:
+    cpu: "100"
+    memory: 200Gi
+  requirements:
+    instanceCategories:
+      - c
+      - m
+      - r
+    capacityTypes:
+      - on-demand
+      - spot
+
+ec2NodeClass:
+  name: default
+  amiFamily: AL2023
+  role: karpenter-node-placeholder
+  subnetTagSelectorKey: karpenter.sh/discovery
+  securityGroupTagSelectorKey: karpenter.sh/discovery
+  additionalTags:
+    karpenter.sh/discovery: my-app-eks

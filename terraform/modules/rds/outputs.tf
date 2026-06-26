@@ -35,3 +35,8 @@ output "rds_security_group_id" {
   value       = aws_security_group.rds.id
 }
 
+output "master_user_secret_arn" {
+  description = "Secrets Manager ARN containing the RDS master user credentials."
+  value       = var.manage_master_user_password ? aws_db_instance.this.master_user_secret[0].secret_arn : aws_secretsmanager_secret.master[0].arn
+}
+

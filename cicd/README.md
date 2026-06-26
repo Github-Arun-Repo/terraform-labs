@@ -1,4 +1,4 @@
-# CI/CD Platform — Jenkins + ArgoCD GitOps
+# CI/CD Platform — GitHub Actions + ArgoCD GitOps
 
 This folder contains CI pipelines and ArgoCD Application manifests for active services.
 
@@ -13,18 +13,19 @@ cicd/
 │   ├── document-review-service-ci.Jenkinsfile
 │   └── user-management-service-ci.Jenkinsfile
 └── argocd/
-    ├── document-api-service-application.yaml
-    ├── document-processing-service-application.yaml
-    ├── document-processor-application.yaml
-    ├── document-review-service-application.yaml
+    ├── root-app-of-apps.yaml
+    ├── eks-services-applicationset.yaml
     ├── grafana-application.yaml
+    ├── karpenter-application.yaml
+    ├── kyverno-application.yaml
+    ├── kyverno-policies-application.yaml
     ├── prometheus-application.yaml
-    └── user-management-service-application.yaml
+    └── ...
 ```
 
 ## Delivery model
 
-- Jenkins: build/test/image push and optional GitOps write-back.
+- GitHub Actions: build/test/image push, signing, scanning, and Terraform PR automation.
 - ArgoCD: watches manifests/charts in Git and reconciles cluster state.
 
 ## Security Scanning
@@ -37,16 +38,31 @@ cicd/
 ## Typical commands
 
 ```bash
-# Apply active ArgoCD Applications
-kubectl apply -f cicd/argocd/document-processor-application.yaml
-kubectl apply -f cicd/argocd/user-management-service-application.yaml
-kubectl apply -f cicd/argocd/document-api-service-application.yaml
-kubectl apply -f cicd/argocd/document-processing-service-application.yaml
-kubectl apply -f cicd/argocd/document-review-service-application.yaml
+# Bootstrap GitOps from a single root Application
+kubectl apply -f cicd/argocd/root-app-of-apps.yaml
 ```
 
 ## Security notes
 
 - Jenkins build agents use IRSA instead of static AWS keys.
 - ArgoCD performs cluster-side deployment reconciliation.
+- ArgoCD Image Updater is the preferred long-term write-back mechanism for image tags.
 - Keep Git write credentials in Jenkins credential store only.
+
+## Cosign keyless verification (GitHub OIDC)
+
+Images pushed by GitHub Actions are signed keylessly with Sigstore cosign.
+
+Use the command below to verify a published image digest:
+
+```bash
+cosign verify \
+    --certificate-identity-regexp "^https://github.com/.*/terraform-labs/.github/workflows/ci-services.yml@refs/heads/main$" \
+    --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+    <aws_account_id>.dkr.ecr.<region>.amazonaws.com/<repository>@sha256:<digest>
+```
+
+Notes:
+
+- Replace `<aws_account_id>`, `<region>`, `<repository>`, and `<digest>` with real values.
+- Verification must target an image digest (`@sha256:...`), not a tag.
