@@ -6,6 +6,7 @@ At 2am, when a supplier upload fails, this platform is designed to identify the 
 Why this matters: operational excellence is determined by correlation speed, not by the number of dashboards.
 
 ```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 flowchart LR
     subgraph SRC[Application Sources]
       UMS[user-management-service]
@@ -44,7 +45,7 @@ flowchart LR
     DAS -->|spans| OSDK
     DPS -->|spans| OSDK
     DRS -->|spans| OSDK
-    OSDK -->|OTLP gRPC :4317| OEXP
+    OSDK -->|OTLP HTTP :4318| OEXP
     OEXP -->|trace batches| TBACK
 
     UMS -->|JSON log lines| LGB
@@ -68,6 +69,7 @@ flowchart LR
 Why this matters: metrics are the fastest way to detect regression, estimate customer impact, and confirm recovery.
 
 ```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 flowchart LR
     SM[ServiceMonitor] -->|target discovery| PO[Prometheus Operator]
     PO -->|render scrape config| PR[Prometheus]
@@ -81,7 +83,7 @@ flowchart LR
     class PO,PR,GD backends;
 ```
 
-Each Spring Boot service exposes `/actuator/prometheus`. In Kubernetes, `ServiceMonitor` resources scrape those endpoints every 15 seconds and are selected via `prometheus: kube-prometheus`.
+The four primary Spring Boot services expose `/actuator/prometheus`: user-management-service, document-api-service, document-processing-service, and document-review-service. Their Kubernetes `ServiceMonitor` resources scrape those endpoints every 15 seconds and are selected via `prometheus: kube-prometheus`.
 
 ### Custom business metrics
 
@@ -121,6 +123,7 @@ documents_processing_failed_total{application="document-processing-service",envi
 Why this matters: distributed traces transform a multi-service outage into a deterministic hop-by-hop timeline.
 
 ```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 sequenceDiagram
     participant Supplier
     participant API as document-api-service
@@ -137,6 +140,7 @@ sequenceDiagram
 ```
 
 ```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 flowchart LR
     W3C[W3C Trace Context] --> MBRIDGE[micrometer-tracing-bridge-otel]
     MBRIDGE --> MDC[MDC traceId/spanId]
@@ -163,6 +167,7 @@ Operational tracing notes:
 Why this matters: logs preserve payload-level context that metrics and traces intentionally aggregate away.
 
 ```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 flowchart LR
     APP[Spring Boot service] -->|MDC-enriched event| LB[Logback JSON pattern]
     LB -->|stdout| CRT[Container runtime]
@@ -221,6 +226,7 @@ Grafana deployment references:
 2. ArgoCD app: [cicd/argocd/grafana-application.yaml](../cicd/argocd/grafana-application.yaml)
 
 ```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 flowchart TB
     subgraph ROW1[Row 1]
       P11[Request Rate per service]
@@ -324,6 +330,7 @@ sum(rate(auth_login_failed_total[5m]))
 Why this matters: an explicit runbook makes observability verification reproducible during onboarding and release validation.
 
 ```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 flowchart LR
     S1[Start services] --> S2[Probe health/metrics/prometheus]
     S2 --> S3[Generate request and capture traceId]

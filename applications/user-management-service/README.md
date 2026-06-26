@@ -2,127 +2,130 @@
 
 Status: Implemented
 
-## Business Responsibility
-This service provides centralized identity and token management for the platform.
+## Role in the platform
 
-It solves:
-1. Secure login for all personas.
-2. Role-based authorization claims used by other services.
-3. Token lifecycle management (access + refresh).
-4. Administrative user onboarding and role updates.
+`user-management-service` is the identity and token authority for the document platform. It owns user registration, login, refresh-token lifecycle, role claims, public key discovery, and ADMIN-only user administration. In the wider workflow it issues the JWTs consumed by the document APIs; see [../README.md](../README.md) for the cross-service view.
 
-## API Specification
+## Internal architecture
 
-Base paths:
-1. `/api/v1/auth`
-2. `/api/v1/users`
-
-### Authentication APIs
-
-| Endpoint | Auth required | Request body | Response |
-|---|---|---|---|
-| `POST /api/v1/auth/register` | No | `email`, `fullName`, `password` | `UserResponse` |
-| `POST /api/v1/auth/login` | No | `email`, `password` | `AuthResponse` |
-| `POST /api/v1/auth/refresh` | No | `refreshToken` | `RefreshAccessTokenResponse` |
-| `POST /api/v1/auth/logout` | Optional auth, optional `X-Refresh-Token` | none | empty body |
-| `POST /api/v1/auth/validate` | No | `token` | `TokenValidationResponse` |
-| `GET /api/v1/auth/public-key` | No | none | `PublicKeyResponse` |
-
-Request/response highlights from implementation:
-1. `register` enforces email format and password length 8-128.
-2. `login` returns `accessToken`, `refreshToken`, `tokenType`, `expiresIn`.
-3. `validate` returns `valid`, `userId`, `email`, `roles`, `expiresAtEpochSeconds`.
-4. `public-key` indicates RSA or HMAC mode via `rsaModeEnabled` and `algorithm`.
-
-### User Management APIs
-
-| Endpoint | Auth required | Request body | Response |
-|---|---|---|---|
-| `POST /api/v1/users` | ADMIN | `email`, `fullName`, `password`, `roles` | `UserResponse` |
-| `PUT /api/v1/users/{userId}/roles` | ADMIN | `roles` | `UserResponse` |
-| `GET /api/v1/users/me` | Authenticated | none | `UserResponse` |
-
-## Security And Token Behavior
-
-Roles emitted in JWT claims:
-1. `ADMIN`
-2. `FINANCE_REVIEWER`
-3. `FINANCE_APPROVER`
-4. `SUPPLIER`
-5. `AUDITOR`
-
-Security behavior implemented:
-1. Failed login attempts increment lockout counters.
-2. Accounts are temporarily locked after max failed attempts.
-3. Refresh tokens are stored hashed (SHA-256), not plaintext.
-4. JWT signing uses RSA when key files are available, otherwise HS256 fallback.
-
-## Database Model (PostgreSQL)
-
-Flyway migrations define these core tables:
-1. `users`
-2. `user_roles`
-3. `refresh_tokens`
+Package: `com.terraformlabs.ums`.
 
 ```mermaid
-erDiagram
-   USERS ||--o{ USER_ROLES : has
-   USERS ||--o{ REFRESH_TOKENS : owns
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
+flowchart TB
+  Client["API client"]:::edge --> AuthController["AuthController\n/api/v1/auth"]:::runtime
+  Client --> UserController["UserController\n/api/v1/users"]:::runtime
+  AuthController --> AuthService["AuthService\nlogin, refresh, validate, logout"]:::runtime
+  AuthController --> UserService["UserService\nregister and current user"]:::runtime
+  UserController --> UserService
+  AuthService --> JwtService["JwtService\nHS256 or RS256"]:::control
+  AuthService --> RefreshTokenService["RefreshTokenService\nhashed refresh tokens"]:::runtime
+  UserService --> UserRepository["UserRepository"]:::runtime
+  RefreshTokenService --> RefreshTokenRepository["RefreshTokenRepository"]:::runtime
+  UserRepository --> RDS["RDS-compatible JDBC\nPostgreSQL driver"]:::data
+  RefreshTokenRepository --> RDS
+  DataSourceConfig["DataSourceConfig\noptional Secrets Manager password"]:::control -. configures .-> RDS
+  JwtFilter["JwtAuthenticationFilter"]:::control -. authenticates .-> UserController
+  Correlation["CorrelationIdFilter"]:::control -. propagates .-> AuthController
 
-   USERS {
-      bigint id PK
-      string email UK
-      string full_name
-      string password_hash
-      string status
-      int failed_login_attempts
-      datetime locked_until
-      datetime created_at
-      datetime updated_at
-   }
-
-   USER_ROLES {
-      bigint user_id FK
-      string role
-   }
-
-   REFRESH_TOKENS {
-      bigint id PK
-      bigint user_id FK
-      string token_hash UK
-      datetime expires_at
-      boolean revoked
-      datetime created_at
-      datetime revoked_at
-   }
+  classDef edge fill:#EAF4FF,stroke:#1D4ED8,color:#0F172A,stroke-width:1.5px;
+  classDef runtime fill:#EFFFF7,stroke:#059669,color:#052E2B,stroke-width:1.5px;
+  classDef data fill:#FFF7ED,stroke:#EA580C,color:#431407,stroke-width:1.5px;
+  classDef control fill:#F5ECFF,stroke:#7C3AED,color:#2E1065,stroke-width:1.5px;
+  classDef legacy fill:#F8FAFC,stroke:#94A3B8,color:#475569,stroke-width:1px,stroke-dasharray: 5 5;
 ```
 
-Indexing from migrations:
-1. `idx_refresh_tokens_user_id`
-2. `idx_refresh_tokens_expires_at`
+*The service is a conventional Spring layered component: controllers delegate to identity services, services persist through JPA repositories, and security filters protect everything outside the public auth surface.*
 
-Bootstrap:
-1. `V2__seed_bootstrap_admin_user.sql` creates initial ADMIN user via Flyway placeholders.
+Security and configuration classes include `SecurityConfig`, `SecurityProperties`, `AwsSecretsProperties`, `DataSourceConfig`, `JwtAuthenticationFilter`, `JwtService`, and `CorrelationIdFilter`.
 
-## Local Run
+## API contract
 
-1. `docker compose up --build`
-2. service URL: `http://localhost:8081`
+| Method | Path | Auth / role required | Request -> response |
+|---|---|---|---|
+| `POST` | `/api/v1/auth/register` | Public | `RegisterUserRequest` -> `UserResponse` |
+| `POST` | `/api/v1/auth/login` | Public | `LoginRequest` -> `AuthResponse` |
+| `POST` | `/api/v1/auth/refresh` | Public | `RefreshTokenRequest` -> `RefreshAccessTokenResponse` |
+| `POST` | `/api/v1/auth/logout` | Authenticated request; optional `X-Refresh-Token` | Revokes refresh-token context; empty response body |
+| `POST` | `/api/v1/auth/validate` | Public | `TokenValidationRequest` -> `TokenValidationResponse` |
+| `GET` | `/api/v1/auth/public-key` | Public | none -> `PublicKeyResponse` with algorithm and PEM when available |
+| `POST` | `/api/v1/users` | `ADMIN` | `CreateUserRequest` -> `UserResponse` |
+| `PUT` | `/api/v1/users/{userId}/roles` | `ADMIN` | `UpdateUserRolesRequest` -> `UserResponse` |
+| `GET` | `/api/v1/users/me` | Authenticated | none -> `UserResponse` |
 
-## Build And Test
+## Data model
 
-1. `mvn clean verify`
+| Model | Storage | Notes |
+|---|---|---|
+| `AppUser` | JPA table `users` | Email, full name, password hash, `UserStatus`, failed login counters, lock timestamp, timestamps. |
+| `Role` | JPA element collection table `user_roles` | `ADMIN`, `FINANCE_REVIEWER`, `FINANCE_APPROVER`, `SUPPLIER`, `AUDITOR`. |
+| `RefreshToken` | JPA table `refresh_tokens` | Stored hashed, expiration-aware, and revocable. |
+| `UserStatus` | Enum | `ACTIVE`, `LOCKED`. |
 
-## Environment Variables (Important)
+The application is configured with `org.postgresql.Driver` and a default `jdbc:postgresql://.../document_identity` datasource. The Terraform RDS layer currently provisions MySQL, so this README records the application contract rather than hiding that infrastructure/application mismatch.
 
-1. `SPRING_DATASOURCE_URL`
-2. `SPRING_DATASOURCE_USERNAME`
-3. `SPRING_DATASOURCE_PASSWORD`
-4. `JWT_ISSUER`
-5. `JWT_SECRET`
-6. `JWT_PRIVATE_KEY_PATH`
-7. `JWT_PUBLIC_KEY_PATH`
-8. `JWT_ACCESS_TOKEN_EXPIRY_MINUTES`
-9. `JWT_REFRESH_TOKEN_EXPIRY_DAYS`
-10. `MAX_LOGIN_ATTEMPTS`
-11. `ACCOUNT_LOCK_MINUTES`
+## Security
+
+`SecurityConfig` disables CSRF for stateless API use, enables CORS, installs `CorrelationIdFilter` and `JwtAuthenticationFilter`, permits OpenAPI and selected actuator endpoints, and requires authentication for all other routes. Method-level authorization protects ADMIN-only user-management operations.
+
+```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
+sequenceDiagram
+  autonumber
+  participant Client as API client
+  participant Auth as AuthController
+  participant Service as AuthService
+  participant Users as UserRepository
+  participant Tokens as RefreshTokenService
+  participant JWT as JwtService
+
+  Client->>Auth: POST /api/v1/auth/login
+  Auth->>Service: login(email, password)
+  Service->>Users: load active user by email
+  Users-->>Service: AppUser + roles
+  Service->>Tokens: create hashed refresh token
+  Service->>JWT: issue access token with roles
+  JWT-->>Service: signed JWT
+  Service-->>Auth: AuthResponse
+  Auth-->>Client: accessToken + refreshToken + expiresIn
+```
+
+*The signature flow authenticates credentials once, stores only a hashed refresh token, and returns role-bearing JWTs for downstream services.*
+
+## Configuration
+
+| Property / env var | Default or source | Purpose |
+|---|---|---|
+| `SERVER_PORT` | `8081` | HTTP port. |
+| `SPRING_DATASOURCE_URL` / `DB_HOST` / `DB_PORT` / `DB_NAME` | `jdbc:postgresql://localhost:5432/document_identity` | JDBC target. |
+| `SPRING_DATASOURCE_USERNAME` / `DB_USERNAME` | `doc_user` | Database user. |
+| `SPRING_DATASOURCE_PASSWORD` / `DB_PASSWORD` | `doc_password` | Database password fallback. |
+| `AWS_DB_PASSWORD_SECRET_NAME` | empty | Optional Secrets Manager secret name for DB password. |
+| `AWS_REGION` | `eu-west-1` | Secrets Manager region for DB secret lookup. |
+| `JWT_ISSUER` | `document-platform` | JWT issuer claim. |
+| `JWT_SECRET` | `very-strong-secret-key-please-change` | HS256 fallback secret. |
+| `JWT_PRIVATE_KEY_PATH` / `JWT_PUBLIC_KEY_PATH` | `/etc/secrets/jwt/*.pem` | RSA key paths for RS256 mode. |
+| `JWT_ACCESS_TOKEN_EXPIRY_MINUTES` | `15` | Access-token lifetime. |
+| `JWT_REFRESH_TOKEN_EXPIRY_DAYS` | `7` | Refresh-token lifetime. |
+| `PASSWORD_BCRYPT_STRENGTH` | `12` | Password hashing work factor. |
+| `MAX_LOGIN_ATTEMPTS` / `ACCOUNT_LOCK_MINUTES` | `5` / `15` | Account lockout behavior. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector.observability.svc.cluster.local:4318` | OTLP traces and metrics endpoint. |
+
+## Testing
+
+| Test class | Count | Coverage |
+|---|---:|---|
+| `AuthFlowIntegrationTest` | 1 | Register, login, refresh, validate, and logout flow against the Spring context. |
+
+Total `@Test` methods: `1`.
+
+## Run locally
+
+| Command | Purpose |
+|---|---|
+| `mvn test` | Run the test suite. |
+| `mvn clean package -DskipTests` | Build the service jar. |
+| `mvn spring-boot:run` | Run directly from the module. |
+| `docker-compose up` | Start local Postgres on `5433` and the service on `8081`. |
+
+Service URL: `http://localhost:8081`.

@@ -27,7 +27,7 @@ Author: Arunasalam Govindasamy
 ## 1. High-Level Architecture
 
 ```mermaid
-%%{init: {'theme': 'default', 'flowchart': {'useMaxWidth': true, 'htmlLabels': true}}}%%
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 graph TB
 	subgraph Internet
 		USER(👤 User / Client)
@@ -77,7 +77,7 @@ graph TB
 Each **Availability Zone** gets exactly **3 subnets** — one in each tier:
 
 ```mermaid
-%%{init: {'theme': 'default', 'flowchart': {'useMaxWidth': true, 'htmlLabels': true}}}%%
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 graph LR
 	subgraph AZ_A["Availability Zone A"]
 		PUB_A["Public\n10.0.0.0/24"]
@@ -116,7 +116,7 @@ graph LR
 Security Groups enforce **least-privilege** at every hop. No CIDR-based rules exist between tiers — all cross-tier rules reference SG IDs.
 
 ```mermaid
-%%{init: {'theme': 'default', 'flowchart': {'useMaxWidth': true, 'htmlLabels': true}}}%%
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 flowchart LR
 	INET(["🌍 Internet"])
 
@@ -138,7 +138,7 @@ flowchart LR
 ## 4. Traffic Flow — Request to Database
 
 ```mermaid
-%%{init: {'theme': 'default', 'sequence': {'useMaxWidth': true}}}%%
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 sequenceDiagram
 	actor User
 	participant ALB as ALB (Public Subnet)
@@ -205,7 +205,7 @@ terraform/
 Node capacity is provisioned with **EKS managed node groups** using AL2023 and IMDSv2-required launch templates. Labels are passed from `terraform.tfvars` through the root module into the EKS module.
 
 ```mermaid
-%%{init: {'theme': 'default', 'flowchart': {'useMaxWidth': true, 'htmlLabels': true}}}%%
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 graph TB
 	EKS_CP["EKS Control Plane\n(private endpoint)"]
 
@@ -261,6 +261,25 @@ For each step:
 - IRSA path: existing OIDC trust + `sub`/`aud` condition per service account.
 - Pod Identity path: enabled by setting `use_pod_identity=true`, creating `aws_eks_pod_identity_association` resources and dedicated pod-identity IAM roles.
 
+```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
+flowchart LR
+	Pod["Service Pod"]:::runtime --> SA["Kubernetes ServiceAccount\nname + namespace from tfvars"]:::control
+	SA --> Token["Projected web identity token\naud=sts.amazonaws.com"]:::control
+	Token --> OIDC["EKS OIDC provider"]:::control
+	OIDC --> Role["IAM role trust policy\nsub=system:serviceaccount:ns:name"]:::control
+	Role --> AWS["AWS APIs\nS3, SQS, DynamoDB, Secrets Manager"]:::data
+	PodIdentity["EKS Pod Identity\nuse_pod_identity=true"]:::legacy -. alternative path .-> AWS
+
+	classDef edge fill:#EAF4FF,stroke:#1D4ED8,color:#0F172A,stroke-width:1.5px;
+	classDef runtime fill:#EFFFF7,stroke:#059669,color:#052E2B,stroke-width:1.5px;
+	classDef data fill:#FFF7ED,stroke:#EA580C,color:#431407,stroke-width:1.5px;
+	classDef control fill:#F5ECFF,stroke:#7C3AED,color:#2E1065,stroke-width:1.5px;
+	classDef legacy fill:#F8FAFC,stroke:#94A3B8,color:#475569,stroke-width:1px,stroke-dasharray: 5 5;
+```
+
+*IRSA is the current default: a pod's ServiceAccount identity is exchanged through the EKS OIDC provider for a scoped IAM role.*
+
 Recommended migration approach:
 
 1. Enable pod identity in a lower environment.
@@ -293,7 +312,7 @@ Suggested cutover:
 ## 11. Remote State Design
 
 ```mermaid
-%%{init: {'theme': 'default', 'flowchart': {'useMaxWidth': true, 'htmlLabels': true}}}%%
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 flowchart LR
 	DEV(["👨‍💻 Developer\nterraform apply"])
 
@@ -376,7 +395,7 @@ terraform output -raw document_processor_ecr_repository_arn
 
 Recommended CI handoff:
 
-1. Use `document_processor_ecr_repository_url` as the Jenkins `ECR_REPOSITORY_URI` parameter.
+1. Use `document_processor_ecr_repository_url` as the GitHub Actions ECR repository variable for the `document-processor` matrix entry.
 2. Keep repository naming configurable through `document_processor_ecr_repository_name` in `terraform.tfvars`.
 3. Adjust `document_processor_ecr_image_tag_mutability`, `document_processor_ecr_image_scan_on_push`, and `document_processor_ecr_max_image_count` per environment.
 

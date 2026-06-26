@@ -13,6 +13,7 @@ This application layer enables:
 ## Business Capability Map
 
 ```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 flowchart LR
    A[Identity and Access] --> B[Document Intake]
    B --> C[Asynchronous Processing]
@@ -38,6 +39,7 @@ flowchart LR
 ## End-to-End Runtime Flow
 
 ```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 sequenceDiagram
    participant Supplier as Supplier/Admin
    participant UMS as user-management-service
@@ -45,6 +47,7 @@ sequenceDiagram
    participant S3 as Amazon S3
    participant SQS as SQS
    participant DPS as document-processing-service
+   participant DDB as DynamoDB DocumentInventory
    participant DRS as document-review-service
 
    Supplier->>UMS: Login / token
@@ -55,8 +58,9 @@ sequenceDiagram
    S3->>SQS: ObjectCreated event
    SQS->>DPS: Poll and process
    DPS->>S3: Write processed artifacts
-   DPS->>DRS: Persist reviewable state in DynamoDB
+   DPS->>DDB: Persist reviewable state
    Supplier->>DRS: Finance users review/approve/reject
+   DRS->>DDB: Read queue, write decisions and audit
 ```
 
 ## Microservices And Detailed Docs
@@ -72,6 +76,7 @@ sequenceDiagram
 ## Data Architecture
 
 ```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 flowchart LR
    UMS[user-management-service] --> PG[(PostgreSQL)]
    API[document-api-service] --> DDB[(DynamoDB DocumentInventory)]
@@ -87,9 +92,12 @@ Storage strategy:
 2. DynamoDB single-table design stores document workflow entities.
 3. S3 stores binary uploads and processed artifact files.
 
+Deployment note: the user-management application configuration currently targets PostgreSQL, while `terraform/terraform.tfvars` provisions MySQL 8.0 for the RDS layer. Align the database engine before treating the Terraform stack as a production deployment target for that service.
+
 ## DocumentInventory Single-Table View
 
 ```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 flowchart TD
    A[PK DOCUMENT#docId SK METADATA] --> B[PK DOCUMENT#docId SK EXTRACTION#LATEST]
    A --> C[PK DOCUMENT#docId SK AUDIT#timestamp#uuid]
@@ -106,6 +114,7 @@ Access patterns used by implemented code:
 ## Lifecycle States Used In Implementation
 
 ```mermaid
+%%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 stateDiagram-v2
    [*] --> UPLOAD_REQUESTED
    UPLOAD_REQUESTED --> UPLOADED
