@@ -5,18 +5,30 @@ spring:
   application:
     name: ${APP_NAME:document-review-service}
 
+# Exposes operational endpoints used by probes, dashboards, and troubleshooting tools.
 management:
+  # Publishes selected actuator endpoints over HTTP so health and telemetry can be scraped.
   endpoints:
     web:
       exposure:
-        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info,prometheus}
+        include: health,info,prometheus,metrics
+  # Enables endpoint-specific behavior for richer readiness and metric publishing.
   endpoint:
+    prometheus:
+      enabled: true
     health:
+      show-details: always
       probes:
         enabled: ${MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED:true}
+  # Adds consistent labels to all metrics so dashboards can filter by service and environment.
   metrics:
     tags:
-      application: ${APP_NAME:document-review-service}
+      application: document-review-service
+      environment: ${ENVIRONMENT:local}
+  # Samples all traces in local/dev to make end-to-end request paths easy to inspect.
+  tracing:
+    sampling:
+      probability: 1.0
 
 aws:
   region: ${AWS_REGION:eu-central-1}
@@ -38,8 +50,9 @@ audit:
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
+# Emits structured JSON logs with trace/span correlation for centralized log analysis.
 logging:
   level:
     root: ${LOG_LEVEL:INFO}
   pattern:
-    level: "%5p [cid:%X{correlationId:-}]"
+    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss}","level":"%p","service":"document-review-service","traceId":"%X{traceId}","spanId":"%X{spanId}","message":"%msg"}%n'

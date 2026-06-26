@@ -29,19 +29,37 @@ spring:
       bootstrap_admin_password: ${BOOTSTRAP_ADMIN_PASSWORD:Admin@12345}
       bootstrap_admin_bcrypt_rounds: ${BOOTSTRAP_ADMIN_BCRYPT_ROUNDS:12}
 
+# Exposes operational endpoints used by probes, dashboards, and troubleshooting tools.
 management:
+  # Publishes selected actuator endpoints over HTTP so health and telemetry can be scraped.
   endpoints:
     web:
       exposure:
-        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info,prometheus}
+        include: health,info,prometheus,metrics
+  # Enables endpoint-specific behavior for richer readiness and metric publishing.
   endpoint:
+    prometheus:
+      enabled: true
     health:
+      show-details: always
       probes:
         enabled: ${MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED:true}
+  # Adds consistent labels to all metrics so dashboards can filter by service and environment.
+  metrics:
+    tags:
+      application: user-management-service
+      environment: ${ENVIRONMENT:local}
+  # Samples all traces in local/dev to make end-to-end request paths easy to inspect.
+  tracing:
+    sampling:
+      probability: 1.0
 
+# Emits structured JSON logs with trace/span correlation for centralized log analysis.
 logging:
   level:
     root: ${LOG_LEVEL:INFO}
+  pattern:
+    console: '{"timestamp":"%d{yyyy-MM-dd HH:mm:ss}","level":"%p","service":"user-management-service","traceId":"%X{traceId}","spanId":"%X{spanId}","message":"%msg"}%n'
 
 app-security:
   jwt:

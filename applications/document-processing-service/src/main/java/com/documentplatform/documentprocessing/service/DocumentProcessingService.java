@@ -94,6 +94,8 @@ public class DocumentProcessingService {
             return true;
         }
 
+        meterRegistry.counter("documents.processing.started").increment();
+
         writeAudit(document, "DOCUMENT_PROCESSING_STARTED", DocumentStatus.PROCESSING, "Processing started");
 
         try {
@@ -160,12 +162,14 @@ public class DocumentProcessingService {
             String failedPath = document.getDocumentType().toLowerCase() + "/failed/" + document.getCustomerId() + "/" + document.getDocumentId() + "/error.json";
             putJson(bucket, failedPath, "{\"error\":\"" + ex.getMessage().replace('"', '\'') + "\"}");
             updateStatus(document, DocumentStatus.FAILED, "Validation failed: " + ex.getMessage(), "DOCUMENT_VALIDATION_FAILED");
+            meterRegistry.counter("documents.processing.failed").increment();
             meterRegistry.counter("document_processing_failed_total", "reason", "validation").increment();
             return true;
         } catch (Exception ex) {
             String failedPath = document.getDocumentType().toLowerCase() + "/failed/" + document.getCustomerId() + "/" + document.getDocumentId() + "/error.json";
             putJson(bucket, failedPath, "{\"error\":\"" + ex.getMessage().replace('"', '\'') + "\"}");
             updateStatus(document, DocumentStatus.EXTRACTION_FAILED, "Processing failed: " + ex.getMessage(), "STATUS_TRANSITION");
+            meterRegistry.counter("documents.processing.failed").increment();
             meterRegistry.counter("document_processing_failed_total").increment();
             return false;
         }

@@ -12,6 +12,8 @@ import com.terraformlabs.ums.exception.UnauthorizedException;
 import com.terraformlabs.ums.repository.UserRepository;
 import com.terraformlabs.ums.security.AppUserPrincipal;
 import com.terraformlabs.ums.security.JwtService;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.jsonwebtoken.JwtException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -31,33 +33,44 @@ public class AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final SecurityProperties securityProperties;
+    private final Counter loginSuccessCounter;
+    private final Counter loginFailedCounter;
 
     public AuthService(
             AuthenticationManager authenticationManager,
             UserRepository userRepository,
             JwtService jwtService,
             RefreshTokenService refreshTokenService,
-            SecurityProperties securityProperties
+            SecurityProperties securityProperties,
+            MeterRegistry meterRegistry
     ) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.securityProperties = securityProperties;
+        this.loginSuccessCounter = meterRegistry.counter("auth.login.success");
+        this.loginFailedCounter = meterRegistry.counter("auth.login.failed");
     }
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
         AppUser user = userRepository.findByEmailIgnoreCase(request.email())
-                .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+                .orElse(null);
+        if (user == null) {
+            loginFailedCounter.increment();
+            throw new UnauthorizedException("Invalid credentials");
+        }
 
         user.unlockIfExpired();
 
         if (user.getStatus() == UserStatus.DISABLED) {
+            loginFailedCounter.increment();
             throw new UnauthorizedException("User account is disabled");
         }
 
         if (user.isLockedNow()) {
+            loginFailedCounter.increment();
             throw new UnauthorizedException("User account is temporarily locked");
         }
 
@@ -79,6 +92,8 @@ public class AuthService {
             );
             String refreshToken = refreshTokenService.createRefreshToken(user);
 
+            loginSuccessCounter.increment();
+
             return new AuthResponse(
                     accessToken,
                     refreshToken,
@@ -86,6 +101,7 @@ public class AuthService {
                     jwtService.getAccessTokenExpirySeconds()
             );
         } catch (BadCredentialsException ex) {
+            loginFailedCounter.increment();
             handleFailedLogin(user);
             throw new UnauthorizedException("Invalid credentials");
         }

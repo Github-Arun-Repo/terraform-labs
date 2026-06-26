@@ -15,6 +15,8 @@ import com.documentplatform.documentapi.model.DocumentItem;
 import com.documentplatform.documentapi.repository.DynamoDbDocumentRepository;
 import com.documentplatform.documentapi.security.AuthenticatedUser;
 import com.documentplatform.documentapi.util.FileNameSanitizer;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import java.time.Duration;
 import java.time.Instant;
@@ -34,6 +36,9 @@ public class DocumentService {
     private final DocumentProperties documentProperties;
     private final AwsProperties awsProperties;
     private final DocumentMetricsService documentMetricsService;
+    private final Counter uploadRequestedCounter;
+    private final Counter uploadFailedCounter;
+    private final Timer uploadDurationTimer;
 
     public DocumentService(
             DynamoDbDocumentRepository documentRepository,
@@ -43,7 +48,8 @@ public class DocumentService {
             FileNameSanitizer fileNameSanitizer,
             DocumentProperties documentProperties,
             AwsProperties awsProperties,
-            DocumentMetricsService documentMetricsService
+            DocumentMetricsService documentMetricsService,
+            MeterRegistry meterRegistry
     ) {
         this.documentRepository = documentRepository;
         this.documentIdGenerator = documentIdGenerator;
@@ -53,12 +59,17 @@ public class DocumentService {
         this.documentProperties = documentProperties;
         this.awsProperties = awsProperties;
         this.documentMetricsService = documentMetricsService;
+        this.uploadRequestedCounter = meterRegistry.counter("documents.upload.requested");
+        this.uploadFailedCounter = meterRegistry.counter("documents.upload.failed");
+        this.uploadDurationTimer = meterRegistry.timer("documents.upload.duration");
     }
 
     @Transactional
     public CreateUploadResponse createUploadRequest(CreateUploadRequest request, AuthenticatedUser user) {
+        uploadRequestedCounter.increment();
         documentMetricsService.uploadRequestsTotal().increment();
         Timer.Sample sample = Timer.start();
+        Timer.Sample customSample = Timer.start();
         try {
             validateBusinessRules(request);
             String documentId = documentIdGenerator.generate();
@@ -109,9 +120,11 @@ public class DocumentService {
                     .expiresInSeconds(expiry.toSeconds())
                     .build();
         } catch (RuntimeException ex) {
+            uploadFailedCounter.increment();
             documentMetricsService.uploadRequestsFailedTotal().increment();
             throw ex;
         } finally {
+            customSample.stop(uploadDurationTimer);
             sample.stop(documentMetricsService.uploadDuration());
         }
     }
