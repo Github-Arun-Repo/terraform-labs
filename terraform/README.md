@@ -303,19 +303,19 @@ terraform plan
 terraform apply
 ```
 
-This root stack now also provisions an ECR repository for the document service. Useful outputs after apply:
+This root stack provisions an ECR repository for document-processor images. Useful outputs after apply:
 
 ```bash
-terraform output -raw ecr_repository_name
-terraform output -raw ecr_repository_url
-terraform output -raw ecr_repository_arn
+terraform output -raw document_processor_ecr_repository_name
+terraform output -raw document_processor_ecr_repository_url
+terraform output -raw document_processor_ecr_repository_arn
 ```
 
 Recommended CI handoff:
 
-1. Use `ecr_repository_url` as the Jenkins `ECR_REPOSITORY_URI` parameter.
-2. Keep repository naming configurable through `ecr_repository_name` in `terraform.tfvars`.
-3. Adjust `ecr_image_tag_mutability`, `ecr_image_scan_on_push`, and `ecr_max_image_count` per environment.
+1. Use `document_processor_ecr_repository_url` as the Jenkins `ECR_REPOSITORY_URI` parameter.
+2. Keep repository naming configurable through `document_processor_ecr_repository_name` in `terraform.tfvars`.
+3. Adjust `document_processor_ecr_image_tag_mutability`, `document_processor_ecr_image_scan_on_push`, and `document_processor_ecr_max_image_count` per environment.
 
 ### Step 4 — Configure kubectl
 

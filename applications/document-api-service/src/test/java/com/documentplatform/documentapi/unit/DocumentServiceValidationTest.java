@@ -9,7 +9,7 @@ import com.documentplatform.documentapi.config.DocumentProperties;
 import com.documentplatform.documentapi.dto.CreateUploadRequest;
 import com.documentplatform.documentapi.enums.DocumentType;
 import com.documentplatform.documentapi.exception.BadRequestException;
-import com.documentplatform.documentapi.repository.DocumentRepository;
+import com.documentplatform.documentapi.repository.DynamoDbDocumentRepository;
 import com.documentplatform.documentapi.security.AuthenticatedUser;
 import com.documentplatform.documentapi.service.DocumentIdGenerator;
 import com.documentplatform.documentapi.service.DocumentMetricsService;
@@ -30,7 +30,7 @@ class DocumentServiceValidationTest {
 
     @BeforeEach
     void setUp() {
-        DocumentRepository repository = Mockito.mock(DocumentRepository.class);
+        DynamoDbDocumentRepository repository = Mockito.mock(DynamoDbDocumentRepository.class);
         S3PresignedUrlService presignedUrlService = Mockito.mock(S3PresignedUrlService.class);
         when(presignedUrlService.generateUploadUrl(any(), any(), any(), any())).thenReturn("https://upload");
 

@@ -113,13 +113,13 @@ terraform init && terraform apply
 cd ../k8s
 ./scripts/deploy-all.sh
 
-# 3. Register the DMS application with ArgoCD (GitOps takes over from here)
-kubectl apply -f ../cicd/argocd/dms-application.yaml
+# 3. Register active applications with ArgoCD (GitOps takes over from here)
+kubectl apply -f ../cicd/argocd/document-processor-application.yaml
 
 # 4. Verify
-kubectl get all -n dms
+kubectl get all -n document-processor
 kubectl get all -n jenkins
-kubectl get app document-management-service -n argocd
+kubectl get app document-processor -n argocd
 ```
 
 ---
@@ -136,15 +136,15 @@ kubectl get app document-management-service -n argocd
 │   └── versions.tf, variables.tf, ...
 ├── applications/                      # Business Services
 │   ├── README.md                     # Application architecture + APIs
-│   └── document-management-service/  # Spring Boot service
+│   └── document-api-service/         # Spring Boot service
 │       ├── src/main/java/...        # Source code
 │       ├── pom.xml                   # Maven dependencies
 │       └── src/test/java/...        # 41 unit tests
 ├── k8s/                              # Kubernetes Runtime
 │   ├── README.md                     # Helm deployment model
 │   ├── eks/                          # Application charts
-│   │   ├── document-management-service/
-│   │   └── document-management-alb/
+│   │   ├── document-api-service/
+│   │   └── document-processor/
 │   ├── jenkins/                      # Dynamic Jenkins controller chart
 │   │   └── dynamic-jenkins/
 │   ├── argocd/                       # ArgoCD installation chart
@@ -153,9 +153,9 @@ kubectl get app document-management-service -n argocd
 └── cicd/                              # CI/CD Pipelines & GitOps
     ├── README.md                      # Full CI/CD platform guide
     ├── jenkins/
-    │   └── dms-ci.Jenkinsfile         # CI pipeline (build, test, push, tag commit)
+    │   └── document-processor-ci.Jenkinsfile  # CI pipeline (build, test, push, tag commit)
     └── argocd/
-        └── dms-application.yaml       # ArgoCD Application — GitOps deployment
+        └── document-processor-application.yaml # ArgoCD Application — GitOps deployment
 ```
 
 ---
@@ -228,7 +228,7 @@ Free tier friendly with optional cost reductions:
 1. **Understand the architecture** — Read the 4 detailed guides (one per box above)
 2. **Provision infrastructure** — Follow the Terraform deployment guide
 3. **Deploy the application** — Use the Kubernetes scripts
-4. **Run CI** — Trigger the Jenkins `dms-build` pipeline
+4. **Run CI** — Trigger one of the active Jenkins service pipelines (for example `document-processor-build`)
 5. **Watch CD** — ArgoCD detects the tag commit and deploys automatically
 6. **Extend and own** — Modify for your use case
 

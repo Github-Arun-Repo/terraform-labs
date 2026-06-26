@@ -1,8 +1,0 @@
-target/
-.git/
-.gitignore
-.idea/
-.vscode/
-README.md
-Dockerfile*
-*.iml

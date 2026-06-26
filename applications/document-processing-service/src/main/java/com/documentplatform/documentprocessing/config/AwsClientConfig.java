@@ -4,9 +4,9 @@ import java.net.URI;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.textract.TextractClient;
@@ -16,7 +16,7 @@ public class AwsClientConfig {
 
     @Bean
     public DynamoDbClient dynamoDbClient(AwsProperties awsProperties) {
-        DynamoDbClient.Builder builder = DynamoDbClient.builder().region(Region.of(awsProperties.getRegion()));
+        var builder = DynamoDbClient.builder().region(Region.of(awsProperties.getRegion()));
         if (StringUtils.hasText(awsProperties.getEndpointOverride())) {
             builder.endpointOverride(URI.create(awsProperties.getEndpointOverride()));
         }
@@ -30,7 +30,7 @@ public class AwsClientConfig {
 
     @Bean
     public S3Client s3Client(AwsProperties awsProperties) {
-        S3Client.Builder builder = S3Client.builder().region(Region.of(awsProperties.getRegion()));
+        var builder = S3Client.builder().region(Region.of(awsProperties.getRegion()));
         if (StringUtils.hasText(awsProperties.getEndpointOverride())) {
             builder.endpointOverride(URI.create(awsProperties.getEndpointOverride()));
         }
@@ -39,7 +39,7 @@ public class AwsClientConfig {
 
     @Bean
     public SqsClient sqsClient(AwsProperties awsProperties) {
-        SqsClient.Builder builder = SqsClient.builder().region(Region.of(awsProperties.getRegion()));
+        var builder = SqsClient.builder().region(Region.of(awsProperties.getRegion()));
         if (StringUtils.hasText(awsProperties.getEndpointOverride())) {
             builder.endpointOverride(URI.create(awsProperties.getEndpointOverride()));
         }
@@ -48,7 +48,7 @@ public class AwsClientConfig {
 
     @Bean
     public TextractClient textractClient(AwsProperties awsProperties) {
-        TextractClient.Builder builder = TextractClient.builder().region(Region.of(awsProperties.getRegion()));
+        var builder = TextractClient.builder().region(Region.of(awsProperties.getRegion()));
         if (StringUtils.hasText(awsProperties.getEndpointOverride())) {
             builder.endpointOverride(URI.create(awsProperties.getEndpointOverride()));
         }

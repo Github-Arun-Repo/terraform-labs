@@ -1,6 +1,0 @@
-com\terraformlabs\dms\service\DocumentServiceTest.class
-com\terraformlabs\dms\exception\GlobalExceptionHandlerTest.class
-com\terraformlabs\dms\service\AuthServiceTest.class
-com\terraformlabs\dms\service\CredentialGeneratorTest.class
-com\terraformlabs\dms\service\UserServiceTest.class
-com\terraformlabs\dms\security\JwtServiceTest.class

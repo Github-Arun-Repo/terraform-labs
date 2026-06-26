@@ -15,7 +15,6 @@ import software.amazon.awssdk.enhanced.dynamodb.DynamoDbIndex;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
-import software.amazon.awssdk.enhanced.dynamodb.model.PageIterable;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -56,7 +55,7 @@ public class DynamoDbDocumentRepository {
             ));
         }
 
-        PageIterable<DocumentItem> pages = index.query(requestBuilder.build());
+        var pages = index.query(requestBuilder.build());
         List<DocumentItem> items = new ArrayList<>();
         String localNextToken = null;
         for (software.amazon.awssdk.enhanced.dynamodb.model.Page<DocumentItem> page : pages) {

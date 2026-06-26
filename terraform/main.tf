@@ -112,20 +112,6 @@ module "eks" {
   tags = var.default_tags
 }
 
-# -- ECR Module ----------------------------------------------------------------
-
-module "ecr" {
-  source = "./modules/ecr"
-
-  repository_name      = var.ecr_repository_name
-  image_tag_mutability = var.ecr_image_tag_mutability
-  image_scan_on_push   = var.ecr_image_scan_on_push
-  force_delete         = var.ecr_force_delete
-  max_image_count      = var.ecr_max_image_count
-
-  tags = var.default_tags
-}
-
 module "document_processor_ecr" {
   source = "./modules/ecr"
 
@@ -382,7 +368,7 @@ data "aws_iam_policy_document" "ecr_push" {
     resources = ["*"]
   }
 
-  # All other ECR push/pull actions are scoped to the single DMS repository
+  # All other ECR push/pull actions are scoped to the document-processor repository
   statement {
     effect = "Allow"
     actions = [
@@ -397,13 +383,13 @@ data "aws_iam_policy_document" "ecr_push" {
       "ecr:DescribeRepositories",
       "ecr:ListImages",
     ]
-    resources = [module.ecr.repository_arn]
+    resources = [module.document_processor_ecr.repository_arn]
   }
 }
 
 resource "aws_iam_policy" "ecr_push" {
   name_prefix = "jenkins-ecr-push-"
-  description = "Allows the Jenkins build-agent IRSA role to push images to the DMS ECR repository."
+  description = "Allows the Jenkins build-agent IRSA role to push images to the document-processor ECR repository."
   policy      = data.aws_iam_policy_document.ecr_push.json
 
   tags = merge(var.default_tags, { Name = "jenkins-ecr-push-policy" })

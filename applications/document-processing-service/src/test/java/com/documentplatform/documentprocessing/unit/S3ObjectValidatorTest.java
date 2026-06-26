@@ -18,7 +18,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.http.AbortableInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,16 +41,16 @@ class S3ObjectValidatorTest {
 
     @Test
     void validPdfMagicBytesPassesValidation() {
-        when(s3Client.headObject(any())).thenReturn(HeadObjectResponse.builder().contentLength(100L).contentType("application/pdf").build());
-        when(s3Client.getObject(any())).thenReturn(stream(new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D, 0x31}));
+        when(s3Client.headObject(any(HeadObjectRequest.class))).thenReturn(HeadObjectResponse.builder().contentLength(100L).contentType("application/pdf").build());
+        when(s3Client.getObject(any(GetObjectRequest.class))).thenReturn(stream(new byte[]{0x25, 0x50, 0x44, 0x46, 0x2D, 0x31}));
 
         assertDoesNotThrow(() -> validator.validate(document("application/pdf")));
     }
 
     @Test
     void invalidMagicBytesFailsValidation() {
-        when(s3Client.headObject(any())).thenReturn(HeadObjectResponse.builder().contentLength(100L).contentType("application/pdf").build());
-        when(s3Client.getObject(any())).thenReturn(stream(new byte[]{0x00, 0x11, 0x22, 0x33}));
+        when(s3Client.headObject(any(HeadObjectRequest.class))).thenReturn(HeadObjectResponse.builder().contentLength(100L).contentType("application/pdf").build());
+        when(s3Client.getObject(any(GetObjectRequest.class))).thenReturn(stream(new byte[]{0x00, 0x11, 0x22, 0x33}));
 
         assertThrows(DocumentValidationException.class, () -> validator.validate(document("application/pdf")));
     }

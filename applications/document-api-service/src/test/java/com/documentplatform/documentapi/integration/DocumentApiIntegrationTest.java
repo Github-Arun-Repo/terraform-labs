@@ -10,7 +10,7 @@ import com.documentplatform.documentapi.dto.DocumentResponse;
 import com.documentplatform.documentapi.dto.PagedDocumentResponse;
 import com.documentplatform.documentapi.enums.DocumentStatus;
 import com.documentplatform.documentapi.enums.DocumentType;
-import com.documentplatform.documentapi.repository.DocumentRepository;
+import com.documentplatform.documentapi.repository.DynamoDbDocumentRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
@@ -36,7 +36,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class DocumentApiIntegrationTest {
 
     @Container
@@ -57,7 +57,7 @@ class DocumentApiIntegrationTest {
     private TestRestTemplate restTemplate;
 
     @Autowired
-    private DocumentRepository documentRepository;
+    private DynamoDbDocumentRepository documentRepository;
 
     @MockBean
     private com.documentplatform.documentapi.service.S3PresignedUrlService s3PresignedUrlService;
@@ -66,7 +66,6 @@ class DocumentApiIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        documentRepository.deleteAll();
         when(s3PresignedUrlService.generateUploadUrl(any(), any(), any(), any())).thenReturn("https://upload.url");
         when(s3PresignedUrlService.generateViewUrl(any(), any(), any())).thenReturn("https://view.url");
 
@@ -86,7 +85,7 @@ class DocumentApiIntegrationTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isNotNull();
-        assertThat(documentRepository.count()).isEqualTo(1);
+        assertThat(documentRepository.findByDocumentId(response.getBody().getDocumentId())).isPresent();
     }
 
     @Test

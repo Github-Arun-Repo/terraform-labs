@@ -44,12 +44,6 @@ default_tags = {
 
 # -- ECR -----------------------------------------------------------------------
 
-ecr_repository_name         = "document-management-service"
-ecr_image_tag_mutability   = "MUTABLE"
-ecr_image_scan_on_push     = true
-ecr_force_delete           = false
-ecr_max_image_count        = 30
-
 document_processor_ecr_repository_name       = "document-processor"
 document_processor_ecr_image_tag_mutability  = "MUTABLE"
 document_processor_ecr_image_scan_on_push    = true

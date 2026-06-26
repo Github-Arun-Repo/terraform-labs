@@ -67,36 +67,6 @@ variable "default_tags" {
 
 # -- ECR -----------------------------------------------------------------------
 
-variable "ecr_repository_name" {
-  description = "Name of the ECR repository that stores document-management-service images."
-  type        = string
-  default     = "document-management-service"
-}
-
-variable "ecr_image_tag_mutability" {
-  description = "Whether ECR tags are mutable or immutable."
-  type        = string
-  default     = "MUTABLE"
-}
-
-variable "ecr_image_scan_on_push" {
-  description = "Enable vulnerability scanning for pushed images."
-  type        = bool
-  default     = true
-}
-
-variable "ecr_force_delete" {
-  description = "Allow repository deletion when images still exist. Use true only for disposable lab environments."
-  type        = bool
-  default     = false
-}
-
-variable "ecr_max_image_count" {
-  description = "Maximum number of images to keep in the repository lifecycle policy."
-  type        = number
-  default     = 30
-}
-
 variable "document_processor_ecr_repository_name" {
   description = "Name of the ECR repository that stores document-processor images."
   type        = string

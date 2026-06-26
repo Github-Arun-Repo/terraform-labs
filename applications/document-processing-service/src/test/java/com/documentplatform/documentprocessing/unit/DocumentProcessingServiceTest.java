@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -161,11 +162,11 @@ class DocumentProcessingServiceTest {
 
         assertTrue(result);
         verify(documentRepository).createDuplicateIndexItem(
-                "DUPLICATE#customer-1#acme-gmbh#inv-1001",
-                "doc-1",
-                "customer-1",
-                "acme-gmbh",
-                "inv-1001",
+                eq("DUPLICATE#customer-1#acme-gmbh#inv-1001"),
+                eq("doc-1"),
+                eq("customer-1"),
+                eq("acme-gmbh"),
+                eq("inv-1001"),
                 any()
         );
     }

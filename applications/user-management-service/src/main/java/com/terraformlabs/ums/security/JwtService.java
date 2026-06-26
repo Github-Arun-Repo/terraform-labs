@@ -52,15 +52,19 @@ public class JwtService {
         Instant now = Instant.now();
         Instant expiry = now.plusSeconds(securityProperties.getJwt().getAccessTokenExpiryMinutes() * 60);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(String.valueOf(userId))
                 .issuer(securityProperties.getJwt().getIssuer())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
                 .claim("email", email)
-                .claim("roles", roles.stream().map(Role::name).toList())
-            .signWith(rsaModeEnabled ? rsaPrivateKey : hmacSigningKey, rsaModeEnabled ? Jwts.SIG.RS256 : Jwts.SIG.HS256)
-                .compact();
+                .claim("roles", roles.stream().map(Role::name).toList());
+
+        if (rsaModeEnabled) {
+            return builder.signWith(rsaPrivateKey, Jwts.SIG.RS256).compact();
+        }
+
+        return builder.signWith(hmacSigningKey, Jwts.SIG.HS256).compact();
     }
 
     public Claims parseClaims(String token) {

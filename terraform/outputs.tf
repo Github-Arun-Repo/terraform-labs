@@ -40,23 +40,6 @@ output "app_security_group_id" {
   value       = aws_security_group.app.id
 }
 
-# -- ECR Outputs ---------------------------------------------------------------
-
-output "ecr_repository_name" {
-  description = "Name of the ECR repository used for application images."
-  value       = module.ecr.repository_name
-}
-
-output "ecr_repository_arn" {
-  description = "ARN of the ECR repository used for application images."
-  value       = module.ecr.repository_arn
-}
-
-output "ecr_repository_url" {
-  description = "Repository URL used by Jenkins and Helm for image pushes and pulls."
-  value       = module.ecr.repository_url
-}
-
 output "document_processor_ecr_repository_name" {
   description = "Name of the ECR repository used for document-processor images."
   value       = module.document_processor_ecr.repository_name
