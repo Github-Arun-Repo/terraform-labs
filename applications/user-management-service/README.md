@@ -66,34 +66,34 @@ Flyway migrations define these core tables:
 
 ```mermaid
 erDiagram
-   users ||--o{ user_roles : has
-   users ||--o{ refresh_tokens : owns
+   USERS ||--o{ USER_ROLES : has
+   USERS ||--o{ REFRESH_TOKENS : owns
 
-   users {
-      BIGSERIAL id PK
-      VARCHAR email UNIQUE
-      VARCHAR full_name
-      VARCHAR password_hash
-      VARCHAR status
-      INT failed_login_attempts
-      TIMESTAMPTZ locked_until
-      TIMESTAMPTZ created_at
-      TIMESTAMPTZ updated_at
+   USERS {
+      bigint id PK
+      string email UK
+      string full_name
+      string password_hash
+      string status
+      int failed_login_attempts
+      datetime locked_until
+      datetime created_at
+      datetime updated_at
    }
 
-   user_roles {
-      BIGINT user_id FK
-      VARCHAR role
+   USER_ROLES {
+      bigint user_id FK
+      string role
    }
 
-   refresh_tokens {
-      BIGSERIAL id PK
-      BIGINT user_id FK
-      VARCHAR token_hash UNIQUE
-      TIMESTAMPTZ expires_at
-      BOOLEAN revoked
-      TIMESTAMPTZ created_at
-      TIMESTAMPTZ revoked_at
+   REFRESH_TOKENS {
+      bigint id PK
+      bigint user_id FK
+      string token_hash UK
+      datetime expires_at
+      boolean revoked
+      datetime created_at
+      datetime revoked_at
    }
 ```
 

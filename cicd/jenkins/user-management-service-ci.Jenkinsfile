@@ -83,6 +83,59 @@ pipeline {
       }
     }
 
+    stage('Trivy Image Scan') {
+      when {
+        expression { params.IMAGE_BUILDER == 'docker' }
+      }
+      agent { label 'docker' }
+      steps {
+        unstash 'repo-source'
+        container('awscli') {
+          sh 'aws ecr get-login-password --region "$AWS_REGION" > ecr-password.txt'
+        }
+        container('docker') {
+          sh '''
+            export DOCKER_HOST=tcp://127.0.0.1:2375
+            IMAGE_REF="$ECR_REPOSITORY_URI:$RESOLVED_IMAGE_TAG"
+
+            echo "[Trivy] Scanning image: $IMAGE_REF"
+            echo "[Trivy] Table output (HIGH and CRITICAL):"
+            docker run --rm \
+              -e TRIVY_USERNAME=AWS \
+              -e TRIVY_PASSWORD="$(cat "$WORKSPACE/ecr-password.txt")" \
+              aquasec/trivy:latest image \
+              --severity HIGH,CRITICAL \
+              --format table \
+              --exit-code 0 \
+              "$IMAGE_REF"
+
+            JSON_OUTPUT=$(docker run --rm \
+              -e TRIVY_USERNAME=AWS \
+              -e TRIVY_PASSWORD="$(cat "$WORKSPACE/ecr-password.txt")" \
+              aquasec/trivy:latest image \
+              --severity HIGH,CRITICAL \
+              --format json \
+              --exit-code 0 \
+              "$IMAGE_REF")
+
+            CRITICAL_COUNT=$(printf '%s' "$JSON_OUTPUT" | grep -o '"Severity":"CRITICAL"' | wc -l | tr -d ' ')
+            HIGH_COUNT=$(printf '%s' "$JSON_OUTPUT" | grep -o '"Severity":"HIGH"' | wc -l | tr -d ' ')
+
+            if [ "$HIGH_COUNT" -gt 0 ]; then
+              echo "[Trivy][WARNING] HIGH vulnerabilities found: $HIGH_COUNT"
+            fi
+
+            if [ "$CRITICAL_COUNT" -gt 0 ]; then
+              echo "[Trivy][ERROR] CRITICAL vulnerabilities found: $CRITICAL_COUNT"
+              exit 1
+            fi
+
+            echo "[Trivy] No CRITICAL vulnerabilities found."
+          '''
+        }
+      }
+    }
+
     stage('Build and Push Image - Jib') {
       when {
         expression { params.IMAGE_BUILDER == 'jib' }

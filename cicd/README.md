@@ -27,6 +27,13 @@ cicd/
 - Jenkins: build/test/image push and optional GitOps write-back.
 - ArgoCD: watches manifests/charts in Git and reconciles cluster state.
 
+## Security Scanning
+
+- Trivy container image scanning runs on every build after the Docker image push stage.
+- CRITICAL severity vulnerabilities fail the pipeline.
+- HIGH severity vulnerabilities are logged as warnings, but the build is allowed to proceed.
+- No local Trivy installation is required; scanning runs using the `aquasec/trivy` Docker image.
+
 ## Typical commands
 
 ```bash
