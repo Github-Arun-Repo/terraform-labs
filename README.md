@@ -4,7 +4,7 @@
 
 > A portfolio-grade reference platform by **Arunasalam Govindasamy**, Senior Cloud & Solutions Architect. It shows how to design and deliver an enterprise system end to end: AWS infrastructure, Spring Boot services, EKS platform engineering, secure GitHub Actions delivery, GitOps, policy, and observability.
 
-This repository is intentionally honest about scope. It contains **5 service modules**: 4 implemented services in the primary document workflow plus 1 legacy/transitional upload service. GitHub Actions is the active CI/CD path; Jenkins is retained as a frozen legacy reference.
+This repository demonstrates end-to-end ownership of enterprise platform design: cloud foundations, secure service architecture, runtime and platform engineering, policy-driven delivery automation, and full-stack observability — designed and assembled as one cohesive system rather than isolated parts.
 
 ---
 
