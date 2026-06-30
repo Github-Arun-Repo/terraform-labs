@@ -74,6 +74,16 @@ grafana:
           isDefault: true
           jsonData:
             timeInterval: "30s"
+        # Distributed tracing backend fed by the OpenTelemetry Collector
+        # (otel-collector -> tempo, both in the observability namespace).
+        - name: Tempo
+          type: tempo
+          uid: tempo
+          url: http://tempo.observability.svc:3200
+          access: proxy
+          jsonData:
+            tracesToLogsV2:
+              datasourceUid: prometheus
 
   # --------------------------------------------------------------------------
   # Dashboard provisioner
@@ -119,6 +129,61 @@ grafana:
         gnetId: 8588
         revision: 1
         datasource: Prometheus
+
+      # Document Platform – business/application metrics from service counters
+      document-platform-business:
+        json: |
+          {
+            "title": "Document Platform — Business Metrics",
+            "uid": "document-platform-business",
+            "schemaVersion": 39,
+            "timezone": "browser",
+            "refresh": "30s",
+            "time": { "from": "now-6h", "to": "now" },
+            "templating": { "list": [] },
+            "panels": [
+              {
+                "type": "timeseries",
+                "title": "Document uploads (requested vs failed) /s",
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+                "targets": [
+                  { "refId": "A", "expr": "sum(rate(documents_upload_requested_total[5m]))", "legendFormat": "requested" },
+                  { "refId": "B", "expr": "sum(rate(documents_upload_failed_total[5m]))", "legendFormat": "failed" }
+                ]
+              },
+              {
+                "type": "timeseries",
+                "title": "Document processing (success vs failed) /s",
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+                "targets": [
+                  { "refId": "A", "expr": "sum(rate(document_processing_success_total[5m]))", "legendFormat": "success" },
+                  { "refId": "B", "expr": "sum(rate(documents_processing_failed_total[5m]))", "legendFormat": "failed" }
+                ]
+              },
+              {
+                "type": "timeseries",
+                "title": "Authentication (success vs failed) /s",
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+                "targets": [
+                  { "refId": "A", "expr": "sum(rate(auth_login_success_total[5m]))", "legendFormat": "success" },
+                  { "refId": "B", "expr": "sum(rate(auth_login_failed_total[5m]))", "legendFormat": "failed" }
+                ]
+              },
+              {
+                "type": "timeseries",
+                "title": "Finance review decisions /s",
+                "datasource": { "type": "prometheus", "uid": "prometheus" },
+                "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+                "targets": [
+                  { "refId": "A", "expr": "sum(rate(document_review_approvals_total[5m]))", "legendFormat": "approved" },
+                  { "refId": "B", "expr": "sum(rate(document_review_rejections_total[5m]))", "legendFormat": "rejected" }
+                ]
+              }
+            ]
+          }
 
   # --------------------------------------------------------------------------
   # Sidecar – enables automatic discovery of dashboards stored in ConfigMaps

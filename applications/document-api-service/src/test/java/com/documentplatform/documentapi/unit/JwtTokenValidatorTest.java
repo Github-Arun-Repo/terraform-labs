@@ -9,7 +9,6 @@ import com.documentplatform.documentapi.security.JwtTokenValidator;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -17,13 +16,15 @@ import org.junit.jupiter.api.Test;
 
 class JwtTokenValidatorTest {
 
+    private static final String SHARED_SECRET = "very-strong-secret-key-please-change";
+
     @Test
     void shouldValidateAndExtractClaims() throws Exception {
         JwtProperties props = new JwtProperties();
         props.setIssuer("document-platform");
-        props.setSecret("change-this-secret");
+        props.setSecret(SHARED_SECRET);
 
-        byte[] keyBytes = MessageDigest.getInstance("SHA-256").digest(props.getSecret().getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = SHARED_SECRET.getBytes(StandardCharsets.UTF_8);
 
         String token = Jwts.builder()
                 .subject("user-123")
@@ -46,7 +47,7 @@ class JwtTokenValidatorTest {
     void shouldRejectInvalidIssuer() {
         JwtProperties props = new JwtProperties();
         props.setIssuer("document-platform");
-        props.setSecret("change-this-secret");
+        props.setSecret(SHARED_SECRET);
 
         JwtTokenValidator validator = new JwtTokenValidator(props);
         assertThrows(Exception.class, () -> validator.validateAndExtract("invalid.token"));

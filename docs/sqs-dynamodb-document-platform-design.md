@@ -81,8 +81,8 @@ The Terraform stack now includes:
 - IRSA policy for document-processing-service (SQS + S3 + DynamoDB + optional Textract)
 
 Application migration notes:
-- document-api-service currently uses relational metadata and should be migrated to DynamoDB single-table writes with PK/SK + GSI1 attributes.
-- document-processing-service is not yet present in this repository and should be added using SQS polling and DynamoDB state transitions per this design.
+- document-api-service writes document metadata to DynamoDB single-table items with PK/SK + GSI1 (and GSI2) attributes, as implemented in the current codebase.
+- document-processing-service is implemented in this repository using SQS polling and DynamoDB state transitions per this design.
 
 ## Interview explanation
 I intentionally use different databases based on access patterns. User management is relational and transactional, so PostgreSQL is a better fit for users, roles, refresh tokens, and strict constraints. Document ingestion and processing are event-driven, high-write, and state-transition heavy, so DynamoDB is a better fit for low-latency key-based access, idempotent conditional updates, and scalable stream-oriented workflows.

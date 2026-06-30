@@ -1,10 +1,28 @@
 kyvernoNamespace: kyverno
-policyValidationFailureAction: Audit
+# Enforce blocks non-compliant admissions outright. Platform/system namespaces are excluded
+# (see excludedNamespaces) so the guardrails apply to application workloads without breaking
+# managed add-ons and controllers that do not meet the hardened pod baseline.
+policyValidationFailureAction: Enforce
 cosignOidcIssuer: https://token.actions.githubusercontent.com
-cosignCertificateIdentityRegex: https://github.com/.*/terraform-labs/.github/workflows/ci-services.yml@refs/heads/main
+cosignCertificateIdentityRegex: ^https://github\.com/[^/]+/terraform-labs/\.github/workflows/ci-services\.yml@refs/heads/main$
+# Namespaces created by the ApplicationSet (namespace == k8s/eks/<dir> basename).
 requireIrsaNamespaces:
-  - document-api
-  - document-processing
-  - document-review
+  - document-api-service
+  - document-processing-service
+  - document-review-service
   - document-processor
-  - user-management
+  - user-management-service
+# Control-plane / managed add-on namespaces that are exempt from the pod-hardening guardrails.
+excludedNamespaces:
+  - kube-system
+  - kube-node-lease
+  - kube-public
+  - kyverno
+  - argocd
+  - monitoring
+  - prometheus
+  - grafana
+  - observability
+  - karpenter
+  - jenkins
+  - cert-manager

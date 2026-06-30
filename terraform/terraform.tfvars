@@ -87,24 +87,26 @@ sqs_notification_prefixes = [
 
 document_inventory_table_name = "DocumentInventory"
 
-document_api_sa_namespace        = "document-api"
+document_api_sa_namespace        = "document-api-service"
 document_api_sa_name             = "document-api-service"
-document_processing_sa_namespace = "document-processing"
+document_processing_sa_namespace = "document-processing-service"
 document_processing_sa_name      = "document-processing-service"
-document_review_sa_namespace     = "document-review"
+document_review_sa_namespace     = "document-review-service"
 document_review_sa_name          = "document-review-service"
-user_management_sa_namespace     = "user-management"
+user_management_sa_namespace     = "user-management-service"
 user_management_sa_name          = "user-management-service"
 
 # -- RDS (free tier) -----------------------------------------------------------
+# Engine is PostgreSQL to match user-management-service (Spring Data JPA + Flyway
+# postgres migrations, jdbc:postgresql driver).
 
 db_identifier             = "my-app-db"
-db_engine                 = "mysql"
-db_engine_version         = "8.0"
-db_parameter_group_family = "mysql8.0"
-db_port                   = 3306
-db_name                   = "appdb"
-db_username               = "dbadmin"
+db_engine                 = "postgres"
+db_engine_version         = "16.4"
+db_parameter_group_family = "postgres16"
+db_port                   = 5432
+db_name                   = "document_identity"
+db_username               = "doc_user"
 db_manage_master_user_password = true
 
 # -- EKS -----------------------------------------------------------------------

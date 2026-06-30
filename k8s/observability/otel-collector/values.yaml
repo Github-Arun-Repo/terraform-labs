@@ -1,0 +1,25 @@
+# OpenTelemetry Collector (contrib distribution).
+image:
+  repository: otel/opentelemetry-collector-contrib
+  # Pinned tag (never :latest) to satisfy the disallow-latest Kyverno policy.
+  tag: "0.109.0"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# OTLP gRPC target for the Tempo trace backend (same namespace).
+tempoEndpoint: tempo.observability.svc.cluster.local:4317
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 192Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Expose collector-managed metrics to the kube-prometheus-stack via a ServiceMonitor.
+# Requires the Prometheus Operator CRDs (installed by the prometheus application).
+serviceMonitor:
+  enabled: true
+  interval: 30s

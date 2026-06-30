@@ -62,7 +62,7 @@ Security and configuration classes include `SecurityConfig`, `SecurityProperties
 | `RefreshToken` | JPA table `refresh_tokens` | Stored hashed, expiration-aware, and revocable. |
 | `UserStatus` | Enum | `ACTIVE`, `LOCKED`. |
 
-The application is configured with `org.postgresql.Driver` and a default `jdbc:postgresql://.../document_identity` datasource. The Terraform RDS layer currently provisions MySQL, so this README records the application contract rather than hiding that infrastructure/application mismatch.
+The application is configured with `org.postgresql.Driver` and a default `jdbc:postgresql://.../document_identity` datasource. The Terraform RDS layer provisions PostgreSQL 16 with the matching database name, so the application and infrastructure database engines are aligned.
 
 ## Security
 

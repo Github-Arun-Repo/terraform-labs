@@ -1,6 +1,6 @@
-# Kyverno Policies (Audit-first)
+# Kyverno Policies (Enforced)
 
-This chart deploys cluster-wide Kyverno `ClusterPolicy` resources for baseline runtime and supply-chain enforcement.
+This chart deploys cluster-wide Kyverno `ClusterPolicy` resources for baseline runtime and supply-chain enforcement. Policies run in `Enforce` mode and block non-compliant admissions; platform/system namespaces (`excludedNamespaces`) are exempt so managed add-ons and controllers that do not meet the hardened pod baseline are not blocked.
 
 ```mermaid
 %%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
@@ -27,7 +27,7 @@ flowchart TB
 	classDef legacy fill:#F8FAFC,stroke:#94A3B8,color:#475569,stroke-width:1px,stroke-dasharray: 5 5;
 ```
 
-*Every policy uses the same validation failure action, so the platform can run audit-first and later flip the pack to enforcement from one values key.*
+*Every policy shares one validation failure action (`Enforce`), and the broad pod policies share one `excludedNamespaces` list, so the enforcement boundary is controlled from two values keys.*
 
 ## Included policies
 
@@ -41,20 +41,20 @@ flowchart TB
 
 | Policy name | What it checks | Match scope | Default action |
 |---|---|---|---|
-| `require-security-context` | Pod `runAsNonRoot: true`, `seccompProfile.type: RuntimeDefault`, container `allowPrivilegeEscalation: false`, and `capabilities.drop: ALL`. | `Pod` | `Audit` from `policyValidationFailureAction` |
-| `require-cpu-memory-requests-limits` | Every container defines CPU and memory requests and limits. | `Pod` | `Audit` from `policyValidationFailureAction` |
-| `disallow-latest-tag` | Container image strings must not contain `:latest`. | `Pod` | `Audit` from `policyValidationFailureAction` |
-| `require-irsa-annotation` | ServiceAccounts include `eks.amazonaws.com/role-arn: arn:aws:iam::*:role/*`. | `ServiceAccount` in `document-api`, `document-processing`, `document-review`, `document-processor`, `user-management` namespaces. | `Audit` from `policyValidationFailureAction` |
-| `verify-images-gha-cosign` | ECR images match keyless signatures from issuer `https://token.actions.githubusercontent.com` and subject regex `https://github.com/.*/terraform-labs/.github/workflows/ci-services.yml@refs/heads/main`. | `Pod`; `background: false`; ECR image references only. | `Audit` from `policyValidationFailureAction` |
+| `require-security-context` | Pod `runAsNonRoot: true`, `seccompProfile.type: RuntimeDefault`, container `allowPrivilegeEscalation: false`, and `capabilities.drop: ALL`. | `Pod` (excludes `excludedNamespaces`) | `Enforce` from `policyValidationFailureAction` |
+| `require-cpu-memory-requests-limits` | Every container defines CPU and memory requests and limits. | `Pod` (excludes `excludedNamespaces`) | `Enforce` from `policyValidationFailureAction` |
+| `disallow-latest-tag` | Container image strings must not contain `:latest`. | `Pod` (excludes `excludedNamespaces`) | `Enforce` from `policyValidationFailureAction` |
+| `require-irsa-annotation` | ServiceAccounts include `eks.amazonaws.com/role-arn: arn:aws:iam::*:role/*`. | `ServiceAccount` in `document-api-service`, `document-processing-service`, `document-review-service`, `document-processor`, `user-management-service` namespaces. | `Enforce` from `policyValidationFailureAction` |
+| `verify-images-gha-cosign` | ECR images match keyless signatures from issuer `https://token.actions.githubusercontent.com` and the subject regex in `cosignCertificateIdentityRegex`. | `Pod` (excludes `excludedNamespaces`); `background: false`; ECR image references only. | `Enforce` from `policyValidationFailureAction` |
 
-## Audit -> Enforce
+## Enforcement & exemptions
 
-Policies start in `Audit` mode by default:
-
-- `policyValidationFailureAction: Audit`
-
-To switch to enforcement, set:
+Policies run in `Enforce` mode by default:
 
 - `policyValidationFailureAction: Enforce`
+
+The broad pod policies (`require-security-context`, `require-cpu-memory-requests-limits`, `disallow-latest-tag`, `verify-images-gha-cosign`) exclude the namespaces listed under `excludedNamespaces` (control plane, managed add-ons, and the observability/monitoring stacks). To relax a policy globally for validation, set:
+
+- `policyValidationFailureAction: Audit`
 
 in [values.yaml](values.yaml) and sync the ArgoCD application.

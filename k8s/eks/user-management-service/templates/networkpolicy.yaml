@@ -11,6 +11,7 @@ spec:
       {{- include "user-management-service.selectorLabels" . | nindent 6 }}
   policyTypes:
     - Ingress
+    - Egress
   ingress:
     - from:
         - namespaceSelector:
@@ -29,4 +30,34 @@ spec:
       ports:
         - protocol: TCP
           port: {{ .Values.service.targetPort }}
+  egress:
+    # DNS resolution (CoreDNS in the cluster DNS namespace)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.dnsNamespace }}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # OTLP traces/metrics to the OpenTelemetry Collector
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.observabilityNamespace }}
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+    # External AWS service endpoints (S3, DynamoDB, SQS, Secrets Manager, STS, ECR) and RDS
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        {{- range .Values.networkPolicy.egressPorts }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
 {{- end }}

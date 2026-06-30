@@ -22,7 +22,6 @@ import java.time.Duration;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -64,7 +63,6 @@ public class DocumentService {
         this.uploadDurationTimer = meterRegistry.timer("documents.upload.duration");
     }
 
-    @Transactional
     public CreateUploadResponse createUploadRequest(CreateUploadRequest request, AuthenticatedUser user) {
         uploadRequestedCounter.increment();
         documentMetricsService.uploadRequestsTotal().increment();
@@ -100,13 +98,17 @@ public class DocumentService {
             entity.setGsi2Pk("CUSTOMER#" + entity.getCustomerId() + "#STATUS#" + entity.getStatus().name());
             entity.setGsi2Sk("UPDATED_AT#" + now + "#DOCUMENT#" + documentId);
 
-            documentRepository.save(entity);
-            log.info("document metadata created documentId={} customerId={} uploadedBy={}",
-                    entity.getDocumentId(), entity.getCustomerId(), entity.getUploadedBy());
-
+            // Generate the presigned URL before persisting metadata. DynamoDB has no
+            // Spring-managed transaction, so persisting first and failing on presign would
+            // leave an orphaned UPLOAD_REQUESTED item. Presigning is a local signing
+            // operation; persisting last keeps the write the final, all-or-nothing step.
             Duration expiry = Duration.ofMinutes(awsProperties.getS3().getUploadUrlExpiryMinutes());
             String uploadUrl = s3PresignedUrlService.generateUploadUrl(
                     entity.getBucketName(), entity.getS3Key(), entity.getContentType(), expiry);
+
+            documentRepository.save(entity);
+            log.info("document metadata created documentId={} customerId={} uploadedBy={}",
+                    entity.getDocumentId(), entity.getCustomerId(), entity.getUploadedBy());
 
             log.info("presigned upload URL generated documentId={} expirySeconds={}",
                     entity.getDocumentId(), expiry.toSeconds());
@@ -129,8 +131,7 @@ public class DocumentService {
         }
     }
 
-    @Transactional(readOnly = true)
-    public PagedDocumentResponse listDocuments(String customerId, DocumentStatus status, DocumentType documentType, int page, int size) {
+    public PagedDocumentResponse listDocuments(String customerId, DocumentStatus status, DocumentType documentType, int page, int size, String nextToken) {
         if (customerId == null || customerId.isBlank()) {
             throw new BadRequestException("customerId is required for DynamoDB queries");
         }
@@ -139,19 +140,19 @@ public class DocumentService {
         }
 
         DynamoDbDocumentRepository.Holder<String> next = new DynamoDbDocumentRepository.Holder<>();
-        java.util.List<DocumentItem> items = documentRepository.listByCustomerAndStatus(customerId, status, documentType, size, null, next);
-        log.info("document list fetched page={} size={} returned={}", page, size, items.size());
+        java.util.List<DocumentItem> items = documentRepository.listByCustomerAndStatus(customerId, status, documentType, size, nextToken, next);
+        log.info("document list fetched page={} size={} returned={} hasMore={}", page, size, items.size(), next.value != null);
 
         return PagedDocumentResponse.builder()
             .content(items.stream().map(this::toResponse).toList())
             .page(page)
             .size(size)
             .totalElements(items.size())
-            .totalPages(1)
-                .build();
+            .nextToken(next.value)
+            .hasMore(next.value != null)
+            .build();
     }
 
-    @Transactional(readOnly = true)
     public DocumentResponse getDocument(String documentId) {
         DocumentItem entity = documentRepository.findByDocumentId(documentId)
                 .orElseThrow(() -> new DocumentNotFoundException("Document not found: " + documentId));
@@ -159,7 +160,6 @@ public class DocumentService {
         return toResponse(entity);
     }
 
-    @Transactional(readOnly = true)
     public ViewUrlResponse generateViewUrl(String documentId) {
         DocumentItem entity = documentRepository.findByDocumentId(documentId)
                 .orElseThrow(() -> new DocumentNotFoundException("Document not found: " + documentId));

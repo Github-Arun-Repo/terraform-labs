@@ -1,5 +1,10 @@
 # Author: Arunasalam Govindasamy
 
+output "aws_region" {
+  description = "AWS region the platform is deployed into."
+  value       = var.aws_region
+}
+
 output "vpc_id" {
   description = "ID of the VPC."
   value       = module.vpc.vpc_id
@@ -53,6 +58,16 @@ output "document_processor_ecr_repository_arn" {
 output "document_processor_ecr_repository_url" {
   description = "Repository URL used by Jenkins and Helm for document-processor image pushes and pulls."
   value       = module.document_processor_ecr.repository_url
+}
+
+output "service_ecr_repository_urls" {
+  description = "Map of application service name -> ECR repository URL (used by Helm image.repository and CI)."
+  value       = { for name, repo in module.service_ecr : name => repo.repository_url }
+}
+
+output "service_ecr_repository_arns" {
+  description = "Map of application service name -> ECR repository ARN."
+  value       = { for name, repo in module.service_ecr : name => repo.repository_arn }
 }
 
 # -- S3 Outputs ----------------------------------------------------------------
@@ -154,11 +169,6 @@ output "eks_cluster_endpoint" {
 output "eks_node_security_group_id" {
   description = "Security Group ID of the EKS worker nodes."
   value       = module.eks.node_security_group_id
-}
-
-output "alb_security_group_id" {
-  description = "Security Group ID of the public ALB."
-  value       = aws_security_group.alb.id
 }
 
 output "eks_node_groups" {

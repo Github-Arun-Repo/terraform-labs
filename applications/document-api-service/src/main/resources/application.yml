@@ -55,7 +55,8 @@ aws:
 
 jwt:
   issuer: ${JWT_ISSUER:document-platform}
-  secret: ${JWT_SECRET:change-this-secret}
+  secret: ${JWT_SECRET:very-strong-secret-key-please-change}
+  public-key-path: ${JWT_PUBLIC_KEY_PATH:/etc/secrets/jwt/public.pem}
 
 document:
   max-file-size-bytes: 20971520

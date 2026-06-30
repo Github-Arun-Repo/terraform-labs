@@ -70,17 +70,9 @@ resource "aws_vpc_security_group_ingress_rule" "node_from_cluster" {
   tags = merge(var.tags, { Name = "${var.cluster_name}-node-ingress-cluster" })
 }
 
-# Load balancer SG can reach NodePort services
-resource "aws_vpc_security_group_ingress_rule" "node_from_alb" {
-  security_group_id            = aws_security_group.node.id
-  description                  = "Allow ALB to reach NodePort services"
-  from_port                    = 30000
-  to_port                      = 32767
-  ip_protocol                  = "tcp"
-  referenced_security_group_id = var.alb_security_group_id
-
-  tags = merge(var.tags, { Name = "${var.cluster_name}-node-ingress-alb" })
-}
+# Ingress from the AWS Load Balancer Controller's ALB to pod/node targets is
+# managed automatically by the controller (target-type: ip), so no static ALB
+# NodePort rule is declared here.
 
 resource "aws_vpc_security_group_egress_rule" "node_egress" {
   security_group_id = aws_security_group.node.id
@@ -252,8 +244,6 @@ resource "aws_eks_node_group" "node_group" {
   tags = merge(var.tags, {
     Name                                        = "${var.cluster_name}-${each.key}-node-group"
     "kubernetes.io/cluster/${var.cluster_name}" = "owned"
-    "k8s.io/cluster-autoscaler/enabled"         = "true"
-    "k8s.io/cluster-autoscaler/${var.cluster_name}" = "owned"
   }, { for k, v in each.value.labels : "k8s-label/${k}" => v })
 
   lifecycle {

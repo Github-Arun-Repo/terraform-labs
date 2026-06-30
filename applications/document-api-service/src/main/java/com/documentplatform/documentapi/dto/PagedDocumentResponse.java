@@ -11,5 +11,7 @@ public class PagedDocumentResponse {
     int page;
     int size;
     long totalElements;
-    int totalPages;
+    // DynamoDB cursor for the next page (opaque). Null when there are no more results.
+    String nextToken;
+    boolean hasMore;
 }

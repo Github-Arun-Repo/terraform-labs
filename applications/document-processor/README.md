@@ -49,7 +49,7 @@ Base path: `/api/invoices`.
 |---|---|---|
 | `UploadInvoiceResponse` | API response only | Returns bucket name, object key, customer ID, file type, content type, and size bytes. |
 | `UploadConstraintsResponse` | API response only | Returns bucket name, max file size, allowed extensions, and allowed content types. |
-| S3 object | S3 bucket `documents-inventory-s3` by default | Object key format is `{extension}/raw/{customerId}/{epochMillis}-{uuid}-{sanitizedFilename}`. |
+| S3 object | S3 bucket `documents-inventory-s3` by default | Object key format is `legacy/raw/{extension}/{customerId}/{epochMillis}-{uuid}-{sanitizedFilename}`. This standalone path writes outside the `invoice/raw/` and `receipt/raw/` prefixes that trigger the async SQS pipeline. |
 
 The module owns no relational schema and no DynamoDB item model.
 
@@ -65,7 +65,7 @@ sequenceDiagram
   Client->>API: POST /api/invoices/upload(customerId, file)
   API->>Upload: uploadInvoice(customerId, MultipartFile)
   Upload->>Upload: Validate size, filename, extension, content type
-  Upload->>Upload: Build extension/raw/customerId/key
+  Upload->>Upload: Build legacy/raw/extension/customerId/key
   Upload->>S3: putObject(bucket, key, bytes)
   S3-->>Upload: Stored object
   Upload-->>API: UploadInvoiceResponse

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: tempo
+description: >
+  Self-contained Grafana Tempo trace backend for the document platform. Receives
+  OTLP traces from the OpenTelemetry Collector and stores them on local ephemeral
+  storage (lab profile). Deployed into the `observability` namespace.
+type: application
+version: 0.1.0
+appVersion: "2.6.1"

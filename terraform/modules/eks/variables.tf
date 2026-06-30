@@ -27,11 +27,6 @@ variable "private_app_subnet_ids" {
   type        = list(string)
 }
 
-variable "alb_security_group_id" {
-  description = "ID of the ALB Security Group. Nodes will accept NodePort traffic from this SG only."
-  type        = string
-}
-
 variable "node_groups" {
   description = <<-EOT
     Map of EKS managed node group definitions.

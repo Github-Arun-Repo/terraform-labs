@@ -81,6 +81,46 @@ kube-prometheus-stack:
   # Alertmanager
   # --------------------------------------------------------------------------
   alertmanager:
+    # Routing tree and receivers. Replace the placeholder Slack webhook with a
+    # real integration (Slack/PagerDuty/email) — ideally sourced from a Secret.
+    config:
+      global:
+        resolve_timeout: 5m
+      route:
+        group_by: ["namespace", "alertname"]
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        receiver: "platform-default"
+        routes:
+          # Watchdog is an always-firing heartbeat; route it to a no-op receiver.
+          - matchers:
+              - alertname = "Watchdog"
+            receiver: "null"
+          # Page on critical severity.
+          - matchers:
+              - severity = "critical"
+            receiver: "platform-critical"
+      inhibit_rules:
+        - source_matchers:
+            - severity = "critical"
+          target_matchers:
+            - severity = "warning"
+          equal: ["namespace", "alertname"]
+      receivers:
+        - name: "null"
+        - name: "platform-default"
+          slack_configs:
+            - api_url: "https://hooks.slack.com/services/REPLACE/WITH/WEBHOOK"
+              channel: "#platform-alerts"
+              send_resolved: true
+              title: '{{ template "slack.default.title" . }}'
+              text: '{{ template "slack.default.text" . }}'
+        - name: "platform-critical"
+          slack_configs:
+            - api_url: "https://hooks.slack.com/services/REPLACE/WITH/WEBHOOK"
+              channel: "#platform-critical"
+              send_resolved: true
     alertmanagerSpec:
       storage:
         volumeClaimTemplate:
@@ -274,3 +314,57 @@ kube-prometheus-stack:
                 description: >
                   Deployment {{ $labels.deployment }} in namespace
                   {{ $labels.namespace }} has {{ $value }} unavailable replicas.
+
+    # Application / business-SLO alerts derived from the services' Micrometer
+    # counters (exposed at /actuator/prometheus and scraped via ServiceMonitor).
+    terraform-labs-application-slo:
+      groups:
+        - name: application-slo-alerts
+          rules:
+            # >20% of document upload requests failing over 10 minutes.
+            - alert: HighDocumentUploadFailureRatio
+              expr: |
+                sum(rate(documents_upload_failed_total[10m]))
+                  /
+                clamp_min(sum(rate(documents_upload_requested_total[10m])), 1)
+                  > 0.2
+              for: 10m
+              labels:
+                severity: warning
+                team: document-platform
+              annotations:
+                summary: "High document upload failure ratio"
+                description: >
+                  More than 20% of document upload requests are failing
+                  (current ratio: {{ $value | humanizePercentage }}).
+
+            # Any document processing failures over 10 minutes.
+            - alert: DocumentProcessingFailures
+              expr: |
+                sum(rate(documents_processing_failed_total[10m])) > 0
+              for: 10m
+              labels:
+                severity: warning
+                team: document-platform
+              annotations:
+                summary: "Document processing failures detected"
+                description: >
+                  document-processing-service is reporting processing failures
+                  ({{ $value | humanize }}/s over the last 10 minutes). Check the
+                  SQS DLQ and processing logs.
+
+            # Sustained authentication failure spike (possible brute force/outage).
+            - alert: AuthLoginFailureSpike
+              expr: |
+                sum(rate(auth_login_failed_total[5m])) > 1
+              for: 10m
+              labels:
+                severity: warning
+                team: document-platform
+              annotations:
+                summary: "Elevated authentication failures"
+                description: >
+                  user-management-service login failure rate is elevated
+                  ({{ $value | humanize }}/s). Investigate credential issues or
+                  abuse.
+

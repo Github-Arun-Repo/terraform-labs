@@ -17,4 +17,11 @@ public class JwtProperties {
 
     @NotBlank
     private String secret;
+
+    /**
+     * Optional path to a PEM-encoded RSA public key. When present and readable, tokens are
+     * verified with RS256 (matching user-management-service RSA mode); otherwise HS256 with the
+     * shared secret is used.
+     */
+    private String publicKeyPath;
 }

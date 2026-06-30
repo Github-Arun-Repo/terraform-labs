@@ -48,8 +48,9 @@ class InvoiceUploadServiceTest {
         assertEquals("cust-001", response.customerId());
         assertEquals("pdf", response.fileType());
         assertEquals("application/pdf", response.contentType());
-        org.junit.jupiter.api.Assertions.assertTrue(response.objectKey().startsWith("pdf/raw/cust-001/"));
-        verify(s3Client).putObject(any(software.amazon.awssdk.services.s3.model.PutObjectRequest.class), any());
+        org.junit.jupiter.api.Assertions.assertTrue(response.objectKey().startsWith("legacy/raw/pdf/cust-001/"));
+        verify(s3Client).putObject(any(software.amazon.awssdk.services.s3.model.PutObjectRequest.class),
+                any(software.amazon.awssdk.core.sync.RequestBody.class));
     }
 
     @Test

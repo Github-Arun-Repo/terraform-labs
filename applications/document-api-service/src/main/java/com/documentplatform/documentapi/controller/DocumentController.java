@@ -48,9 +48,10 @@ public class DocumentController {
             @RequestParam(required = false) DocumentStatus status,
             @RequestParam(required = false) DocumentType documentType,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String nextToken
     ) {
-        return documentService.listDocuments(customerId, status, documentType, page, size);
+        return documentService.listDocuments(customerId, status, documentType, page, size, nextToken);
     }
 
     @GetMapping("/{documentId}")

@@ -1,0 +1,21 @@
+# Grafana Tempo (single-binary) — lab trace backend.
+image:
+  repository: grafana/tempo
+  # Pinned tag (never :latest) to satisfy the disallow-latest Kyverno policy.
+  tag: "2.6.1"
+  pullPolicy: IfNotPresent
+
+# 48h block retention keeps lab storage bounded.
+blockRetention: 48h
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# Ephemeral storage for the lab profile. Swap for a PVC in a real environment.
+storage:
+  emptyDirSizeLimit: 5Gi

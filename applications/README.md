@@ -73,6 +73,11 @@ sequenceDiagram
 | document-review-service | Implemented | Review queue, corrections, approve/reject, audit APIs | [document-review-service/README.md](document-review-service/README.md) |
 | document-processor | In progress / legacy | Standalone multipart upload service to S3 | [document-processor/README.md](document-processor/README.md) |
 
+> Build note: all five services inherit from a single shared parent POM
+> ([applications/pom.xml](pom.xml)) that pins Java, Spring Boot, the AWS SDK BOM,
+> Testcontainers BOM, jjwt, and springdoc versions in one place, so service POMs no
+> longer re-declare (and drift on) those versions.
+
 ## Data Architecture
 
 ```mermaid
@@ -92,7 +97,7 @@ Storage strategy:
 2. DynamoDB single-table design stores document workflow entities.
 3. S3 stores binary uploads and processed artifact files.
 
-Deployment note: the user-management application configuration currently targets PostgreSQL, while `terraform/terraform.tfvars` provisions MySQL 8.0 for the RDS layer. Align the database engine before treating the Terraform stack as a production deployment target for that service.
+Deployment note: the user-management application targets PostgreSQL, and `terraform/terraform.tfvars` provisions RDS PostgreSQL 16 (`db_engine = "postgres"`, port 5432, database `document_identity`) so the infrastructure and application engines are aligned.
 
 ## DocumentInventory Single-Table View
 

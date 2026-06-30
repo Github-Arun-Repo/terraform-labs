@@ -1,0 +1,51 @@
+# ArgoCD Application – OpenTelemetry Collector
+#
+# Deploys the OTLP collector into the `observability` namespace. The collector is
+# the OTLP endpoint that every Spring Boot service targets
+# (OTEL_EXPORTER_OTLP_ENDPOINT -> http://otel-collector.observability.svc:4318).
+# It forwards traces to Tempo and exposes OTLP-sourced metrics for Prometheus.
+#
+# How to apply (handled automatically by the root app-of-apps):
+#   kubectl apply -f cicd/argocd/otel-collector-application.yaml
+#
+# Prerequisites:
+#   1. ArgoCD is installed in the cluster (see k8s/argocd/argocd/).
+#   2. The tempo application is synced (collector forwards traces to it).
+#   3. The prometheus application is synced (provides the ServiceMonitor CRD).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-collector
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: terraform-labs
+    app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/component: observability
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    # ---------------------------------------------------------------------------
+    # Update repoURL to your actual repository before applying this manifest.
+    # ---------------------------------------------------------------------------
+    repoURL: https://github.com/Github-Arun-Repo/terraform-labs.git
+    targetRevision: main
+    path: k8s/observability/otel-collector
+
+    helm:
+      valueFiles:
+        - values.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

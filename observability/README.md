@@ -5,6 +5,9 @@ At 2am, when a supplier upload fails, this platform is designed to identify the 
 ## 🔭 Overview
 Why this matters: operational excellence is determined by correlation speed, not by the number of dashboards.
 
+> **Deployment status.** The metrics path (Micrometer → Prometheus → Grafana) and the **tracing path** are deployed: every service ships OTLP to the OpenTelemetry Collector (`otel-collector.observability.svc:4318`), which forwards spans to **Grafana Tempo** and exposes OTLP metrics to Prometheus. The collector and Tempo live under [k8s/observability/](../k8s/observability) and are delivered by GitOps ([cicd/argocd/otel-collector-application.yaml](../cicd/argocd/otel-collector-application.yaml), [cicd/argocd/tempo-application.yaml](../cicd/argocd/tempo-application.yaml)) or `k8s/scripts/deploy-observability.sh`. The **logging backend** (Fluent Bit → Loki) is still a documented future addition; logs are currently emitted as structured JSON to stdout and read via `kubectl logs`.
+
+
 ```mermaid
 %%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 flowchart LR

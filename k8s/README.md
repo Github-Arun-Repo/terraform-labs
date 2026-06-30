@@ -8,7 +8,7 @@ This layer owns the runtime contract for the platform: how service images become
 |---|---|---|
 | `k8s/eks/document-api-service` | Public document metadata and presigned URL API on container port `8082`. | `_helpers.tpl`, `deployment.yaml`, `hpa.yaml`, `networkpolicy.yaml`, `pdb.yaml`, `service.yaml`, `serviceaccount.yaml`, `servicemonitor.yaml` |
 | `k8s/eks/document-processing-service` | Internal SQS/S3/DynamoDB processing worker on container port `8083`. | `_helpers.tpl`, `deployment.yaml`, `hpa.yaml`, `networkpolicy.yaml`, `pdb.yaml`, `service.yaml`, `serviceaccount.yaml`, `servicemonitor.yaml` |
-| `k8s/eks/document-processor` | Transitional S3 upload service on container port `8080`. | `_helpers.tpl`, `deployment.yaml`, `networkpolicy.yaml`, `service.yaml`, `serviceaccount.yaml` |
+| `k8s/eks/document-processor` | Transitional S3 upload service on container port `8080`. | `_helpers.tpl`, `deployment.yaml`, `hpa.yaml`, `networkpolicy.yaml`, `pdb.yaml`, `service.yaml`, `serviceaccount.yaml`, `servicemonitor.yaml` |
 | `k8s/eks/document-review-service` | Review queue, correction, decision, and audit API on container port `8084`. | `_helpers.tpl`, `deployment.yaml`, `hpa.yaml`, `networkpolicy.yaml`, `pdb.yaml`, `service.yaml`, `serviceaccount.yaml`, `servicemonitor.yaml` |
 | `k8s/eks/user-management-service` | Identity, JWT, role, and refresh-token service on container port `8081`. | `_helpers.tpl`, `deployment.yaml`, `hpa.yaml`, `networkpolicy.yaml`, `pdb.yaml`, `service.yaml`, `serviceaccount.yaml`, `servicemonitor.yaml` |
 | `k8s/argocd/argocd` | Wrapper chart for Argo CD `2.13.3`. | Official `argo-cd` Helm dependency `>=7.0.0 <8.0.0`; no local templates. |
@@ -46,7 +46,7 @@ flowchart TB
 
 ## Runtime Hardening
 
-The four primary service charts share a hardened baseline in `values.yaml` and `deployment.yaml`. The `document-processor` chart carries the same Deployment, ServiceAccount, Service, and NetworkPolicy foundation, but does not currently include HPA, PDB, or ServiceMonitor templates.
+The four primary service charts share a hardened baseline in `values.yaml` and `deployment.yaml`. The `document-processor` chart now carries the same full template set (Deployment, ServiceAccount, Service, NetworkPolicy, HPA, PDB, and ServiceMonitor).
 
 | Runtime control | Current chart value |
 |---|---|
@@ -58,16 +58,16 @@ The four primary service charts share a hardened baseline in `values.yaml` and `
 | Placement | Topology spread across `topology.kubernetes.io/zone` and `kubernetes.io/hostname`. |
 | Resources | Requests `100m` CPU and `256Mi` memory; limits `500m` CPU and `512Mi` memory. |
 | Health model | Startup, readiness, and liveness probes use `/actuator/health/readiness` and `/actuator/health/liveness`. |
-| NetworkPolicy | Conditional chart feature with ingress from `ingress-nginx`, `kube-system`, and Prometheus namespace `monitoring`. |
+| NetworkPolicy | Enabled by default with namespace-scoped ingress (`ingress-nginx`, `kube-system`, Prometheus `monitoring`) and an egress allowlist (cluster DNS, the `observability` OTLP collector, and external TCP for AWS/RDS). |
 | ServiceAccount identity | `eks.amazonaws.com/role-arn` annotation is present in each service values file and should be replaced from Terraform outputs. |
 
 ```mermaid
 %%{init: {'theme':'default','flowchart':{'useMaxWidth':true,'htmlLabels':true}}}%%
 flowchart LR
-	Internet["Client / external caller"]:::edge --> ALB["Application Load Balancer\npublic subnets"]:::edge
-	ALB -->|"HTTP/HTTPS :80/:443"| ALBSG["ALB security group"]:::edge
-	ALBSG -->|"egress to NodePort range"| NodeSG["EKS node security group\nallows ALB SG :30000-32767"]:::control
-	NodeSG --> NodePort["NodePort on worker node\nkube-proxy datapath"]:::runtime
+	Internet["Client / external caller"]:::edge --> ALB["Application Load Balancer\n(AWS LB Controller-managed)"]:::edge
+	ALB -->|"HTTP/HTTPS :80/:443"| ALBSG["ALB security group\n(controller-managed)"]:::edge
+	ALBSG -->|"target-type ip to pod ENIs"| NodeSG["EKS node/pod security group\n(controller-managed rules)"]:::control
+	NodeSG --> NodePort["pod datapath\nCNI / kube-proxy"]:::runtime
 	NodePort --> Service["Kubernetes Service\nClusterIP :80 -> targetPort"]:::runtime
 	Service --> Pod["Pod container port\n8080 / 8081 / 8082 / 8083 / 8084"]:::runtime
 	Pod -. AWS identity .-> IRSA["ServiceAccount + IRSA"]:::control
@@ -153,7 +153,7 @@ flowchart LR
 | `hpa.minReplicas` / `hpa.maxReplicas` | Autoscaling range. | `2` to `5`. |
 | `hpa.targetCPUUtilizationPercentage` | CPU target. | `70`. |
 | `pdb.enabled` / `pdb.minAvailable` | Voluntary disruption protection. | `true` and `1` for the four primary services. |
-| `networkPolicy.enabled` | Emits an ingress NetworkPolicy. | `false` by default; namespaces listed for ingress and Prometheus. |
+| `networkPolicy.enabled` | Emits an ingress + egress NetworkPolicy. | `true` by default; ingress/Prometheus namespaces plus DNS, observability, and external egress ports. |
 | `serviceAccount.annotations.eks.amazonaws.com/role-arn` | IRSA role binding. | Placeholder ARN to be replaced from Terraform outputs. |
 | `env` | Runtime environment variables. | Includes service port, AWS region, OTLP endpoint on the four primary service charts, and service-specific AWS resources. |
 

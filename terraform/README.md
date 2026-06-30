@@ -2,7 +2,7 @@ Author: Arunasalam Govindasamy
 
 # Terraform Labs — AWS Multi-Tier Architecture
 
-> Fully modular Terraform code that provisions a production-style (free-tier friendly) AWS environment: **VPC → EKS (managed node groups + managed addons) → RDS MySQL**, fronted by an **Application Load Balancer** and backed by **S3 + DynamoDB** remote state.
+> Fully modular Terraform code that provisions a production-style (free-tier friendly) AWS environment: **VPC → EKS (managed node groups + managed addons) → RDS PostgreSQL**, fronted by an **AWS Load Balancer Controller-managed Application Load Balancer** and backed by **S3 + DynamoDB** remote state.
 
 ---
 
@@ -50,7 +50,7 @@ graph TB
 			end
 
 			subgraph DB["Private DB Subnets (eu-west-1a/b/c)"]
-				RDS["🗄️ RDS MySQL 8.0\ndb.t3.micro · single-AZ"]
+				RDS["🗄️ RDS PostgreSQL 16\ndb.t3.micro · single-AZ"]
 			end
 		end
 
@@ -61,10 +61,10 @@ graph TB
 	end
 
 	USER -->|"HTTPS 443"| ALB
-	ALB -->|"NodePort 30000-32767"| NG1
-	ALB -->|"NodePort 30000-32767"| NG2
-	ALB -->|"NodePort 30000-32767"| NG3
-	NG1 & NG2 & NG3 -->|"MySQL 3306"| RDS
+	ALB -->|"pod targets (ip)"| NG1
+	ALB -->|"pod targets (ip)"| NG2
+	ALB -->|"pod targets (ip)"| NG3
+	NG1 & NG2 & NG3 -->|"PostgreSQL 5432"| RDS
 	NG1 & NG2 & NG3 -->|"Outbound via NAT"| NAT
 	NAT --> IGW --> Internet
 	EKS -.->|"API 443 (kubelet)"| NG1 & NG2 & NG3
@@ -107,7 +107,7 @@ graph LR
 |------|--------|-------------------|----------|
 | **Public** | `10.0.{0,1,2}.0/24` | Direct via IGW | ALB, NAT Gateways |
 | **Private-App** | `10.0.{10,11,12}.0/24` | Outbound via NAT | EKS nodes (all 3 groups) |
-| **Private-DB** | `10.0.{20,21,22}.0/24` | None (isolated) | RDS MySQL |
+| **Private-DB** | `10.0.{20,21,22}.0/24` | None (isolated) | RDS PostgreSQL |
 
 ---
 
@@ -121,16 +121,16 @@ flowchart LR
 	INET(["🌍 Internet"])
 
 	subgraph SGS["Security Groups"]
-		ALB_SG["ALB SG\n✅ Ingress: 0.0.0.0/0 :80,:443\n✅ Egress: all"]
-		NODE_SG["Node SG\n✅ Ingress from ALB SG :30000-32767\n✅ Ingress from Cluster SG :1025-65535\n✅ Ingress self (inter-node)\n✅ Egress: all → NAT"]
+		ALB_SG["ALB SG (AWS LB Controller-managed)\n✅ Ingress: 0.0.0.0/0 :80,:443\n✅ Egress: all"]
+		NODE_SG["Node SG\n✅ Ingress from ALB (controller-managed, target-type ip)\n✅ Ingress from Cluster SG :1025-65535\n✅ Ingress self (inter-node)\n✅ Egress: all → NAT"]
 		CLUSTER_SG["Cluster SG\n✅ Ingress from Node SG :443\n✅ Egress: all"]
-		RDS_SG["RDS SG\n✅ Ingress from Node SG :3306\n❌ No ingress from internet"]
+		RDS_SG["RDS SG\n✅ Ingress from Node SG :5432\n❌ No ingress from internet"]
 	end
 
 	INET -->|"80/443"| ALB_SG
-	ALB_SG -->|"NodePort"| NODE_SG
+	ALB_SG -->|"pod targets"| NODE_SG
 	NODE_SG <-->|"443 kubelet"| CLUSTER_SG
-	NODE_SG -->|"3306"| RDS_SG
+	NODE_SG -->|"5432"| RDS_SG
 ```
 
 ---
@@ -144,12 +144,12 @@ sequenceDiagram
 	participant ALB as ALB (Public Subnet)
 	participant Node as EKS Node (Private-App)
 	participant Pod as App Pod (Kubernetes)
-	participant RDS as RDS MySQL (Private-DB)
+	participant RDS as RDS PostgreSQL (Private-DB)
 
 	User->>ALB: HTTPS :443
-	ALB->>Node: HTTP NodePort :30xxx (SG: ALB→Node)
+	ALB->>Node: routes to pod targets (controller-managed SG)
 	Node->>Pod: kube-proxy routes to pod
-	Pod->>RDS: MySQL :3306 (SG: Node→RDS)
+	Pod->>RDS: PostgreSQL :5432 (SG: Node→RDS)
 	RDS-->>Pod: Query result
 	Pod-->>User: HTTP response (return path)
 
@@ -187,7 +187,7 @@ terraform/
 	│   ├── variables.tf
 	│   └── outputs.tf
 	│
-	└── rds/                # RDS MySQL, SG, parameter group, DB subnet group
+	└── rds/                # RDS PostgreSQL, SG, parameter group, DB subnet group
 		├── main.tf
 		├── variables.tf
 		└── outputs.tf
@@ -291,7 +291,7 @@ Recommended migration approach:
 - Cluster Autoscaler: mature, ASG-oriented, slower reaction and coarser bin-packing.
 - Karpenter: faster scheduling reaction, flexible instance selection (including Spot), better bin-packing efficiency.
 
-This repo adds optional Karpenter foundation resources behind `karpenter_enabled`:
+This platform uses a **single, explicit autoscaling strategy**: managed node groups provide a fixed baseline (no Cluster Autoscaler is installed, and the `k8s.io/cluster-autoscaler/*` node-group tags have been removed to avoid a dual-autoscaler signal), with Karpenter as the optional dynamic scaler behind `karpenter_enabled`:
 
 - Controller IAM role
 - Node IAM role + instance profile
@@ -358,25 +358,26 @@ terraform init
 terraform apply
 ```
 
-### Step 2 — Update backend.tf in terraform/
+### Step 2 — Provide backend config in terraform/
 
-Copy the outputs from Step 1 into `backend.tf`:
+Copy the example and fill in the bootstrap outputs (no account-specific values are committed to `backend.tf`):
+
+```bash
+cp backend.hcl.example backend.hcl
+```
 
 ```hcl
-backend "s3" {
-  bucket         = "<state_bucket_name from bootstrap output>"
-  key            = "terraform-labs/terraform.tfstate"
-  region         = "eu-west-1"
-  encrypt        = true
-  dynamodb_table = "terraform-state-locks"
-}
+# backend.hcl
+bucket         = "<state_bucket_name from bootstrap output>"
+region         = "eu-west-1"
+dynamodb_table = "terraform-state-locks"
 ```
 
 ### Step 3 — Deploy the full stack
 
 ```bash
 cd terraform
-terraform init    # connects to S3 backend
+terraform init -backend-config=backend.hcl    # connects to S3 backend
 terraform plan
 terraform apply
 ```

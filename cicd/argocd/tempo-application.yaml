@@ -1,0 +1,49 @@
+# ArgoCD Application – Grafana Tempo (trace backend)
+#
+# Deploys a single-binary Tempo into the `observability` namespace. Tempo receives
+# OTLP traces forwarded by the OpenTelemetry Collector and stores them on ephemeral
+# local storage (lab profile).
+#
+# How to apply (handled automatically by the root app-of-apps):
+#   kubectl apply -f cicd/argocd/tempo-application.yaml
+#
+# Prerequisites:
+#   1. ArgoCD is installed in the cluster (see k8s/argocd/argocd/).
+#   2. The repoURL below matches your actual Git remote.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tempo
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: terraform-labs
+    app.kubernetes.io/managed-by: argocd
+    app.kubernetes.io/component: observability
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    # ---------------------------------------------------------------------------
+    # Update repoURL to your actual repository before applying this manifest.
+    # ---------------------------------------------------------------------------
+    repoURL: https://github.com/Github-Arun-Repo/terraform-labs.git
+    targetRevision: main
+    path: k8s/observability/tempo
+
+    helm:
+      valueFiles:
+        - values.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

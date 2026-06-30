@@ -124,7 +124,7 @@ Replace `<aws_account_id>`, `<region>`, `<repository>`, and `<digest>` with real
 
 ## Legacy: Jenkins (Frozen)
 
-The files under `cicd/jenkins` are retained as reference implementations only. They are not the active delivery path for this repository.
+The files under `cicd/legacy/jenkins` are retained as frozen reference implementations only (see [cicd/legacy/jenkins/README.md](legacy/jenkins/README.md)). They are not the active delivery path for this repository.
 
 | Jenkinsfile | Legacy scope |
 |---|---|

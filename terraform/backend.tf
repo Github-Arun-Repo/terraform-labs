@@ -1,20 +1,20 @@
 # Author: Arunasalam Govindasamy
 
-# Remote state backend - S3 + DynamoDB locking
+# Remote state backend - S3 + DynamoDB locking (partial configuration)
 #
 # PREREQUISITES: run the bootstrap module first:
 #   cd bootstrap && terraform init && terraform apply
 #
-# Then update the values below to match the bootstrap outputs and run:
-#   terraform init (from the repo root)
+# Environment-specific values (bucket, region, lock table) are supplied at init
+# time so no account-specific identifiers are hardcoded here:
+#   terraform init -backend-config=backend.hcl
+#
+# Copy backend.hcl.example to backend.hcl and fill in the bootstrap outputs.
 
 terraform {
   backend "s3" {
-    bucket         = "my-terraform-state-123456" # must match bootstrap state_bucket_name
-    key            = "terraform-labs/terraform.tfstate"
-    region         = "eu-west-1"                 # must match bootstrap aws_region
-    encrypt        = true
-    dynamodb_table = "terraform-state-locks"     # must match bootstrap dynamodb_table_name
+    key     = "terraform-labs/terraform.tfstate"
+    encrypt = true
   }
 }
 

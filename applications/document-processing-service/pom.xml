@@ -5,22 +5,16 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.2</version>
-        <relativePath/>
+        <groupId>com.terraformlabs.platform</groupId>
+        <artifactId>document-platform-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>com.documentplatform</groupId>
     <artifactId>document-processing-service</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>document-processing-service</name>
-
-    <properties>
-        <java.version>21</java.version>
-        <aws.sdk.version>2.26.22</aws.sdk.version>
-        <springdoc.version>2.6.0</springdoc.version>
-    </properties>
 
     <dependencies>
         <dependency>
@@ -92,6 +86,16 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>localstack</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

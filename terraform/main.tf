@@ -49,51 +49,12 @@ resource "aws_vpc_security_group_egress_rule" "app_egress" {
   })
 }
 
-# -- ALB Security Group (public subnets) --------------------------------------
-# The ALB lives in public subnets and is the only path to reach EKS nodes.
-
-resource "aws_security_group" "alb" {
-  name_prefix = "${var.vpc_name}-alb-"
-  description = "Security group for the public-facing Application Load Balancer"
-  vpc_id      = module.vpc.vpc_id
-
-  tags = merge(var.default_tags, {
-    Name = "${var.vpc_name}-alb-sg"
-  })
-
-  lifecycle { create_before_destroy = true }
-}
-
-resource "aws_vpc_security_group_ingress_rule" "alb_http" {
-  security_group_id = aws_security_group.alb.id
-  description       = "Allow inbound HTTP from internet"
-  from_port         = 80
-  to_port           = 80
-  ip_protocol       = "tcp"
-  cidr_ipv4         = "0.0.0.0/0"
-
-  tags = merge(var.default_tags, { Name = "${var.vpc_name}-alb-http" })
-}
-
-resource "aws_vpc_security_group_ingress_rule" "alb_https" {
-  security_group_id = aws_security_group.alb.id
-  description       = "Allow inbound HTTPS from internet"
-  from_port         = 443
-  to_port           = 443
-  ip_protocol       = "tcp"
-  cidr_ipv4         = "0.0.0.0/0"
-
-  tags = merge(var.default_tags, { Name = "${var.vpc_name}-alb-https" })
-}
-
-resource "aws_vpc_security_group_egress_rule" "alb_egress" {
-  security_group_id = aws_security_group.alb.id
-  description       = "Allow ALB to forward to node NodePorts"
-  ip_protocol       = "-1"
-  cidr_ipv4         = "0.0.0.0/0"
-
-  tags = merge(var.default_tags, { Name = "${var.vpc_name}-alb-egress" })
-}
+# -- ALB / Ingress -------------------------------------------------------------
+# The public Application Load Balancer is provisioned and owned by the AWS Load
+# Balancer Controller from Kubernetes Ingress resources (target-type: ip routes
+# directly to pod ENIs). The controller also creates and manages the ALB's
+# security group and the corresponding ingress rules on the node/pod ENIs, so no
+# standalone ALB security group is declared here.
 
 # -- EKS Module ----------------------------------------------------------------
 
@@ -112,7 +73,6 @@ module "eks" {
   vpc_id          = module.vpc.vpc_id
 
   private_app_subnet_ids = module.vpc.private_app_subnet_ids
-  alb_security_group_id  = aws_security_group.alb.id
 
   node_groups = local.effective_eks_node_groups
 
@@ -123,6 +83,20 @@ module "document_processor_ecr" {
   source = "./modules/ecr"
 
   repository_name      = var.document_processor_ecr_repository_name
+  image_tag_mutability = var.document_processor_ecr_image_tag_mutability
+  image_scan_on_push   = var.document_processor_ecr_image_scan_on_push
+  force_delete         = var.document_processor_ecr_force_delete
+  max_image_count      = var.document_processor_ecr_max_image_count
+
+  tags = var.default_tags
+}
+
+# ECR repositories for the Spring Boot application services built by ci-services.yml.
+module "service_ecr" {
+  source   = "./modules/ecr"
+  for_each = toset(var.service_ecr_repository_names)
+
+  repository_name      = each.value
   image_tag_mutability = var.document_processor_ecr_image_tag_mutability
   image_scan_on_push   = var.document_processor_ecr_image_scan_on_push
   force_delete         = var.document_processor_ecr_force_delete
@@ -235,7 +209,10 @@ data "aws_iam_policy_document" "github_actions_ci_ecr" {
       "ecr:DescribeRepositories",
       "ecr:ListImages",
     ]
-    resources = [module.document_processor_ecr.repository_arn]
+    resources = concat(
+      [module.document_processor_ecr.repository_arn],
+      [for repo in module.service_ecr : repo.repository_arn],
+    )
   }
 }
 
@@ -510,7 +487,7 @@ data "aws_iam_policy_document" "ecr_push" {
     resources = ["*"]
   }
 
-  # All other ECR push/pull actions are scoped to the document-processor repository
+  # All other ECR push/pull actions are scoped to the application image repositories
   statement {
     effect = "Allow"
     actions = [
@@ -525,7 +502,10 @@ data "aws_iam_policy_document" "ecr_push" {
       "ecr:DescribeRepositories",
       "ecr:ListImages",
     ]
-    resources = [module.document_processor_ecr.repository_arn]
+    resources = concat(
+      [module.document_processor_ecr.repository_arn],
+      [for repo in module.service_ecr : repo.repository_arn],
+    )
   }
 }
 

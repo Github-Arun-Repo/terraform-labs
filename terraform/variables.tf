@@ -3,6 +3,11 @@
 variable "aws_region" {
   description = "AWS region to deploy into (e.g. eu-west-1, us-east-1)."
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-z]{2}-[a-z]+-[0-9]$", var.aws_region))
+    error_message = "aws_region must be a valid AWS region code, e.g. eu-west-1."
+  }
 }
 
 variable "vpc_name" {
@@ -13,6 +18,11 @@ variable "vpc_name" {
 variable "vpc_cidr" {
   description = "CIDR block for the VPC."
   type        = string
+
+  validation {
+    condition     = can(cidrhost(var.vpc_cidr, 0))
+    error_message = "vpc_cidr must be a valid IPv4 CIDR block, e.g. 10.0.0.0/16."
+  }
 }
 
 variable "availability_zones" {
@@ -108,6 +118,11 @@ variable "document_processor_ecr_image_tag_mutability" {
   description = "Whether document-processor ECR tags are mutable or immutable."
   type        = string
   default     = "MUTABLE"
+
+  validation {
+    condition     = contains(["MUTABLE", "IMMUTABLE"], var.document_processor_ecr_image_tag_mutability)
+    error_message = "image_tag_mutability must be MUTABLE or IMMUTABLE."
+  }
 }
 
 variable "document_processor_ecr_image_scan_on_push" {
@@ -126,6 +141,17 @@ variable "document_processor_ecr_max_image_count" {
   description = "Maximum number of images to keep in the document-processor repository lifecycle policy."
   type        = number
   default     = 30
+}
+
+variable "service_ecr_repository_names" {
+  description = "ECR repository names for the Spring Boot application services built and pushed by CI (ci-services.yml)."
+  type        = list(string)
+  default = [
+    "document-api-service",
+    "document-processing-service",
+    "document-review-service",
+    "user-management-service",
+  ]
 }
 
 # -- S3 (Document Inventory) ---------------------------------------------------
@@ -293,25 +319,35 @@ variable "db_identifier" {
 variable "db_engine" {
   description = "Database engine (mysql | postgres | mariadb)."
   type        = string
-  default     = "mysql"
+  default     = "postgres"
+
+  validation {
+    condition     = contains(["mysql", "postgres", "mariadb"], var.db_engine)
+    error_message = "db_engine must be one of: mysql, postgres, mariadb."
+  }
 }
 
 variable "db_engine_version" {
   description = "Engine version (must be free-tier eligible on db.t3.micro)."
   type        = string
-  default     = "8.0"
+  default     = "16.4"
 }
 
 variable "db_parameter_group_family" {
   description = "Parameter group family matching the engine + version (e.g. mysql8.0, postgres16)."
   type        = string
-  default     = "mysql8.0"
+  default     = "postgres16"
 }
 
 variable "db_port" {
   description = "Port the database listens on (3306 for MySQL, 5432 for PostgreSQL)."
   type        = number
-  default     = 3306
+  default     = 5432
+
+  validation {
+    condition     = var.db_port > 0 && var.db_port <= 65535
+    error_message = "db_port must be between 1 and 65535."
+  }
 }
 
 variable "db_name" {
@@ -341,12 +377,22 @@ variable "eks_cluster_version" {
   description = "Kubernetes version for the EKS cluster (e.g. '1.36')."
   type        = string
   default     = "1.36"
+
+  validation {
+    condition     = can(regex("^1\\.[0-9]{2}$", var.eks_cluster_version))
+    error_message = "eks_cluster_version must be in the form '1.NN', e.g. 1.36."
+  }
 }
 
 variable "eks_authentication_mode" {
   description = "EKS cluster authentication mode: CONFIG_MAP, API_AND_CONFIG_MAP, or API."
   type        = string
   default     = "API_AND_CONFIG_MAP"
+
+  validation {
+    condition     = contains(["CONFIG_MAP", "API_AND_CONFIG_MAP", "API"], var.eks_authentication_mode)
+    error_message = "eks_authentication_mode must be one of: CONFIG_MAP, API_AND_CONFIG_MAP, API."
+  }
 }
 
 variable "eks_node_groups" {

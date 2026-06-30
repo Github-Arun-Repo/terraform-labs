@@ -14,7 +14,6 @@ import com.documentplatform.documentapi.repository.DynamoDbDocumentRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
@@ -50,7 +49,7 @@ class DocumentApiIntegrationTest {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
-        registry.add("jwt.secret", () -> "change-this-secret");
+        registry.add("jwt.secret", () -> "very-strong-secret-key-please-change");
     }
 
     @Autowired
@@ -180,7 +179,7 @@ class DocumentApiIntegrationTest {
     }
 
     private String tokenWithRole(String role) throws Exception {
-        byte[] keyBytes = MessageDigest.getInstance("SHA-256").digest("change-this-secret".getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = "very-strong-secret-key-please-change".getBytes(StandardCharsets.UTF_8);
         return Jwts.builder()
                 .subject("user-123")
                 .issuer("document-platform")

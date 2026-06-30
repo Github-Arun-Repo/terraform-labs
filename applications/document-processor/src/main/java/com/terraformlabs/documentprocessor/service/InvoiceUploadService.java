@@ -127,7 +127,12 @@ public class InvoiceUploadService {
     }
 
     private String buildObjectKey(String extension, String customerId, String fileName) {
+        // This is the standalone/legacy upload path. It deliberately writes under a dedicated
+        // "legacy/raw/" namespace that is OUTSIDE the S3 -> SQS event-processing prefixes
+        // (invoice/raw/, receipt/raw/). The async pipeline keys documents off DynamoDB metadata
+        // that this service does not create, so routing here into those prefixes would only
+        // generate unresolvable poison messages on the ingestion DLQ.
         String uniqueName = Instant.now().toEpochMilli() + "-" + UUID.randomUUID() + "-" + fileName;
-        return extension + "/raw/" + customerId + "/" + uniqueName;
+        return "legacy/raw/" + extension + "/" + customerId + "/" + uniqueName;
     }
 }

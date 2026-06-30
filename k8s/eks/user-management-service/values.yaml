@@ -81,11 +81,17 @@ probes:
     failureThreshold: 3
 
 networkPolicy:
-  enabled: false
+  enabled: true
   allowedIngressNamespaces:
     - ingress-nginx
     - kube-system
   prometheusNamespace: monitoring
+  dnsNamespace: kube-system
+  observabilityNamespace: observability
+  # External TCP egress: AWS service endpoints over 443 and RDS PostgreSQL over 5432.
+  egressPorts:
+    - 443
+    - 5432
 
 env:
   - name: SERVER_PORT

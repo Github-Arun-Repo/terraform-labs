@@ -68,7 +68,7 @@ graph TB
     Apps["Spring Boot service pods\n5 Helm charts, 2 replicas by default"]:::runtime
     ArgoCD["ArgoCD\nroot app-of-apps + ApplicationSet"]:::control
     Obs["Prometheus / Grafana\nServiceMonitor + dashboards"]:::control
-    Kyverno["Kyverno policies\nAudit-first admission guardrails"]:::control
+    Kyverno["Kyverno policies\nEnforced admission guardrails"]:::control
   end
 
   EKS --> Apps
@@ -288,8 +288,8 @@ flowchart TB
     EKS["EKS managed nodes\nprivate subnets"]:::runtime
     Pods["Pods\nnon-root, read-only FS, dropped caps, seccomp"]:::runtime
     IRSA["IRSA today\nPod Identity optional"]:::control
-    NetPol["NetworkPolicy\nnamespace-scoped ingress"]:::control
-    Kyverno["Kyverno\nAudit-first policy + image verification"]:::control
+    NetPol["NetworkPolicy\nnamespace ingress + egress allowlist"]:::control
+    Kyverno["Kyverno\nEnforced policy + image verification"]:::control
   end
 
   subgraph DataZone["Private Data Zone"]
@@ -319,7 +319,7 @@ Caption: Layered trust boundaries from the public edge to private application an
 | Workload identity | IRSA roles scoped by Kubernetes service account; EKS Pod Identity available behind `use_pod_identity`. |
 | Cluster access | EKS Access Entries for admin/CI principals, with `API_AND_CONFIG_MAP` as migration mode. |
 | Runtime hardening | Non-root containers, read-only root filesystem, dropped capabilities, seccomp and resource requests/limits. |
-| Admission policy | Kyverno policies for security context, resources, no `:latest`, IRSA annotation and cosign verification. |
+| Admission policy | Kyverno policies (`Enforce`, system namespaces exempt) for security context, resources, no `:latest`, IRSA annotation and cosign verification. |
 | Supply chain | Trivy gating, SARIF upload, CycloneDX SBOM, cosign keyless signing, SLSA provenance, CodeQL and gitleaks. |
 | Secrets | RDS master credentials managed in AWS Secrets Manager; Terraform no longer requires a plaintext DB password variable. |
 | State and data | Terraform state in encrypted S3 with DynamoDB locking; application data encrypted via RDS/S3/DynamoDB/SQS controls. |
@@ -339,14 +339,14 @@ Caption: Layered trust boundaries from the public edge to private application an
 | **Default node groups** | 3 (`api`, `worker`, `batch`) | `terraform/terraform.tfvars` |
 | **Managed addons** | 5 (`vpc-cni`, `coredns`, `kube-proxy`, `aws-ebs-csi-driver`, `eks-pod-identity-agent`) | `terraform/modules/eks/main.tf` |
 | **GitHub Actions workflows** | 4 | `.github/workflows/` |
-| **ServiceMonitor templates** | 4 primary services | `k8s/eks/*/templates/servicemonitor.yaml` |
+| **ServiceMonitor templates** | 5 services | `k8s/eks/*/templates/servicemonitor.yaml` |
 | **Java test coverage artifacts** | 36 `@Test` annotations across 15 Java test files | `applications/*/src/test/java` |
 
 ---
 
 ## 📡 Observability
 
-The platform uses Prometheus for metrics, OTLP for traces and structured JSON logs for correlation. Four primary Spring Boot services expose `/actuator/prometheus` through ServiceMonitor templates; application configs include OTLP exporter settings and log patterns with `traceId`, `spanId` and `correlationId`.
+The platform uses Prometheus for metrics, OTLP for traces and structured JSON logs for correlation. All five Spring Boot services expose `/actuator/prometheus` through ServiceMonitor templates; application configs include OTLP exporter settings and log patterns with `traceId`, `spanId` and `correlationId`.
 
 | Signal | Implementation | Why it matters |
 |--------|----------------|----------------|
@@ -377,7 +377,8 @@ terraform init && terraform apply
 
 # 2. Provision the AWS platform
 cd ../
-terraform init
+cp backend.hcl.example backend.hcl   # set bucket/region/lock table from bootstrap outputs
+terraform init -backend-config=backend.hcl
 terraform plan
 terraform apply
 
@@ -419,12 +420,13 @@ RDS master credentials are handled through AWS Secrets Manager. Keep `db_manage_
 │   ├── eks/                          # 5 service Helm charts
 │   ├── argocd/                       # ArgoCD installation chart
 │   ├── karpenter/                    # Optional Karpenter chart and NodePool/EC2NodeClass
+│   ├── observability/                # OpenTelemetry Collector + Grafana Tempo (tracing tier)
 │   ├── policy/kyverno/               # Admission policy chart
 │   └── scripts/                      # Cluster/platform install helpers
 ├── cicd/                             # Delivery and GitOps control plane definitions
 │   ├── README.md
 │   ├── argocd/                       # Root app-of-apps, ApplicationSet, platform Applications
-│   └── jenkins/                      # Frozen legacy Jenkins pipeline references
+│   └── legacy/jenkins/               # Frozen legacy Jenkins pipeline references (not active)
 ├── observability/                    # Metrics, traces, logs, dashboards and alerting guide
 └── .github/workflows/                # Active GitHub Actions CI/CD, Terraform, CodeQL, quality gates
 ```
@@ -498,7 +500,7 @@ This is a reference architecture. Adapt it by:
 
 - Adding new service modules under `applications/` and matching charts under `k8s/eks/`
 - Creating environment-specific Helm values overlays
-- Promoting Kyverno from `Audit` to `Enforce` after validation
+- Tuning the Kyverno `excludedNamespaces` list as you add platform/system namespaces (policies run in `Enforce` mode for application namespaces)
 - Enabling `use_pod_identity` or `karpenter_enabled` in a lower environment before production-style rollout
 - Extending GitHub Actions matrices and ArgoCD ApplicationSets for additional workloads
 

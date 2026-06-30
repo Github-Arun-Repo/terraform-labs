@@ -1,3 +1,10 @@
 # Maven/Java build artifacts
 **/target/
 *.class
+
+# Terraform local state, providers, and environment-specific backend config
+**/.terraform/
+*.tfstate
+*.tfstate.*
+terraform/backend.hcl
+crash.log

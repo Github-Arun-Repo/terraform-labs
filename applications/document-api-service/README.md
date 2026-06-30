@@ -100,7 +100,7 @@ The Helm chart binds the pod to a ServiceAccount with an `eks.amazonaws.com/role
 | `S3_BUCKET_NAME` | `documents-inventory-s3` | Document object bucket. |
 | `S3_UPLOAD_URL_EXPIRY_MINUTES` | `10` | Presigned upload URL lifetime. |
 | `S3_VIEW_URL_EXPIRY_MINUTES` | `5` | Presigned view URL lifetime. |
-| `JWT_ISSUER` / `JWT_SECRET` | `document-platform` / `change-this-secret` | JWT validation settings. |
+| `JWT_ISSUER` / `JWT_SECRET` | `document-platform` / `very-strong-secret-key-please-change` | JWT validation settings. |
 | `document.max-file-size-bytes` | `20971520` | 20 MiB upload request limit. |
 | `document.allowed-content-types` | PDF, PNG, JPEG, TIFF | MIME allowlist. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector.observability.svc.cluster.local:4318` | OTLP traces and metrics endpoint. |

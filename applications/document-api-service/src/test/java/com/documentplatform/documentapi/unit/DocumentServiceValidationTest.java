@@ -52,7 +52,8 @@ class DocumentServiceValidationTest {
                 new FileNameSanitizer(),
                 documentProperties,
                 awsProperties,
-                new DocumentMetricsService(new SimpleMeterRegistry())
+                new DocumentMetricsService(new SimpleMeterRegistry()),
+                new SimpleMeterRegistry()
         );
     }
 

@@ -128,7 +128,7 @@ AWS access should come from the chart ServiceAccount IRSA annotation for DynamoD
 | `S3_VIEW_URL_EXPIRY_MINUTES` | `5` | Presigned view URL lifetime. |
 | `DYNAMODB_DOCUMENT_TABLE_NAME` | `DocumentInventory` | Shared document table. |
 | `DYNAMODB_REVIEW_QUEUE_INDEX_NAME` | `GSI2` | Review queue index. |
-| `JWT_ISSUER` / `JWT_SECRET` | `document-platform` / `change-this-secret` | JWT validation settings. |
+| `JWT_ISSUER` / `JWT_SECRET` | `document-platform` / `very-strong-secret-key-please-change` | JWT validation settings. |
 | `AUDIT_READ_EVENTS_ENABLED` | `false` | Read-event audit logging flag. |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | CORS allowlist. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector.observability.svc.cluster.local:4318` | OTLP traces and metrics endpoint. |

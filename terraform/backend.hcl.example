@@ -1,0 +1,7 @@
+# Backend configuration for `terraform init -backend-config=backend.hcl`.
+# Copy to backend.hcl and set values to match the bootstrap module outputs.
+# Do NOT commit a real backend.hcl with account-specific values.
+
+bucket         = "REPLACE_WITH_BOOTSTRAP_STATE_BUCKET"   # bootstrap output: state_bucket_name
+region         = "eu-west-1"                              # bootstrap aws_region
+dynamodb_table = "terraform-state-locks"                 # bootstrap output: dynamodb_table_name
