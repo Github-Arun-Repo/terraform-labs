@@ -5,6 +5,8 @@ This folder contains a Python diagrams (mingrammer) source that renders portfoli
 - system-context.png
 - event-flow.png
 - cicd-supply-chain.png
+- aws-infrastructure-overview.png
+- aws-application-overview.png
 
 ## Prerequisites
 
@@ -22,6 +24,7 @@ python3 -m pip install -r docs/diagrams/requirements.txt
 
 ```bash
 python3 docs/diagrams/architecture.py
+python3 docs/diagrams/aws_style_diagrams.py
 ```
 
 ## Generate via GitHub Actions (no local setup)

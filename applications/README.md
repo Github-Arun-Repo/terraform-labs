@@ -10,6 +10,14 @@ This application layer enables:
 4. Full traceability of status transitions and decisions.
 5. Separation of identity, intake, processing, and review responsibilities.
 
+## Application Overview Diagram (AWS Style)
+
+<p align="center">
+   <img src="../docs/diagrams/aws-application-overview.png" alt="Simplified application workflow overview" width="100%" />
+</p>
+
+This diagram keeps the flow simple and readable: identity, intake, event-driven processing, and finance review with clear handoff points.
+
 ## Business Capability Map
 
 ```mermaid

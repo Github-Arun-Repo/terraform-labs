@@ -49,6 +49,16 @@ Explore five core domains of this architecture. **Click any box below to dive in
 
 ---
 
+## Infrastructure Overview Diagram (AWS Style)
+
+<p align="center">
+  <img src="docs/diagrams/aws-infrastructure-overview.png" alt="Simplified AWS infrastructure overview" width="100%" />
+</p>
+
+This view is intentionally minimal: it highlights ingress, EKS runtime, data services, IaC, and GitOps delivery with clean directional flow.
+
+---
+
 ## 💡 Why This Architecture?
 
 The platform models a realistic enterprise document-processing system: identity and authorization, secure document intake, asynchronous processing, finance review, auditability, and an AWS/EKS delivery platform around it.
