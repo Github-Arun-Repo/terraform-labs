@@ -8,3 +8,7 @@
 *.tfstate.*
 terraform/backend.hcl
 crash.log
+
+# Python cache artifacts
+**/__pycache__/
+*.py[cod]

@@ -24,6 +24,15 @@ python3 -m pip install -r docs/diagrams/requirements.txt
 python3 docs/diagrams/architecture.py
 ```
 
+## Generate via GitHub Actions (no local setup)
+
+If your local environment cannot install pip or Graphviz, run the repository workflow:
+
+- Workflow: `Render Architecture Diagrams`
+- Trigger: `workflow_dispatch`
+
+The workflow renders `docs/diagrams/*.png` and commits updated files automatically.
+
 Generated files are written to `docs/diagrams/` and are embedded by the top-level README.
 
 ## Notes

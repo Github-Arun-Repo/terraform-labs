@@ -1,0 +1,51 @@
+name: Render Architecture Diagrams
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - docs/diagrams/architecture.py
+      - docs/diagrams/requirements.txt
+      - docs/diagrams/README.md
+      - README.md
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Graphviz
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz
+
+      - name: Install Python dependencies
+        run: python -m pip install -r docs/diagrams/requirements.txt
+
+      - name: Render PNG diagrams
+        run: python docs/diagrams/architecture.py
+
+      - name: Commit rendered diagrams
+        run: |
+          if git diff --quiet -- docs/diagrams/*.png; then
+            echo "No diagram changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/diagrams/*.png
+          git commit -m "chore(diagrams): render architecture PNGs [skip ci]"
+          git push
