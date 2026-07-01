@@ -92,15 +92,15 @@ The four primary Spring Boot services expose `/actuator/prometheus`: user-manage
 
 | Service | Metric Name | Type | What It Measures |
 |---|---|---|---|
-| document-api-service | documents.upload.requested | Counter | Upload requests accepted by the API boundary |
-| document-api-service | documents.upload.failed | Counter | Upload request failures caused by validation or runtime exceptions |
-| document-api-service | documents.upload.duration | Timer | End-to-end upload request handling latency |
-| document-processing-service | documents.processing.started | Counter | Processing executions that begin work on a document |
-| document-processing-service | documents.processing.failed | Counter | Processing executions ending in failure paths |
-| document-processing-service | documents.processing.duration (planned) | Timer | End-to-end processing latency per document |
-| document-processing-service | documents.duplicate.detected (planned) | Counter | Documents classified as duplicates |
-| document-review-service | documents.review.approved | Counter | Approved review decisions |
-| document-review-service | documents.review.rejected | Counter | Rejected review decisions |
+| document-api-service | documents_upload_requests_total | Counter | Upload requests accepted by the API boundary |
+| document-api-service | documents_upload_requests_failed_total | Counter | Upload request failures caused by validation or runtime exceptions |
+| document-api-service | documents_upload_request_duration_seconds | Timer | End-to-end upload request handling latency |
+| document-processing-service | document_processing_success_total | Counter | Processing executions that complete successfully |
+| document-processing-service | document_processing_failed_total | Counter | Processing executions ending in failure paths |
+| document-processing-service | document_processing_duration_seconds (planned) | Timer | End-to-end processing latency per document |
+| document-processing-service | document_processing_duplicate_detected_total | Counter | Documents classified as duplicates |
+| document-review-service | document_review_approvals_total | Counter | Approved review decisions |
+| document-review-service | document_review_rejections_total | Counter | Rejected review decisions |
 | document-review-service | documents.manual.review.triggered (planned) | Counter | Manual review escalations triggered |
 | user-management-service | auth.login.success | Counter | Successful user login operations |
 | user-management-service | auth.login.failed | Counter | Failed user login operations |
@@ -109,17 +109,17 @@ The four primary Spring Boot services expose `/actuator/prometheus`: user-manage
 ### Prometheus exposition example
 
 ```text
-# HELP documents_upload_requested_total Upload requests accepted by the API boundary
-# TYPE documents_upload_requested_total counter
-documents_upload_requested_total{application="document-api-service",environment="local"} 249
+# HELP documents_upload_requests_total Upload requests accepted by the API boundary
+# TYPE documents_upload_requests_total counter
+documents_upload_requests_total{application="document-api-service",environment="local"} 249
 
 # HELP auth_login_success_total Successful user login operations
 # TYPE auth_login_success_total counter
 auth_login_success_total{application="user-management-service",environment="local"} 911
 
-# HELP documents_processing_failed_total Processing executions ending in failure paths
-# TYPE documents_processing_failed_total counter
-documents_processing_failed_total{application="document-processing-service",environment="local"} 7
+# HELP document_processing_failed_total Processing executions ending in failure paths
+# TYPE document_processing_failed_total counter
+document_processing_failed_total{application="document-processing-service",environment="local"} 7
 ```
 
 ## 🔍 Tracing
@@ -277,17 +277,17 @@ sum(documents_state_total{state="PROCESSING"})
 
 Upload duration p50:
 ```promql
-histogram_quantile(0.50, rate(documents_upload_duration_seconds_bucket[5m]))
+histogram_quantile(0.50, rate(documents_upload_request_duration_seconds_bucket[5m]))
 ```
 
 Upload duration p95:
 ```promql
-histogram_quantile(0.95, rate(documents_upload_duration_seconds_bucket[5m]))
+histogram_quantile(0.95, rate(documents_upload_request_duration_seconds_bucket[5m]))
 ```
 
 Upload duration p99:
 ```promql
-histogram_quantile(0.99, rate(documents_upload_duration_seconds_bucket[5m]))
+histogram_quantile(0.99, rate(documents_upload_request_duration_seconds_bucket[5m]))
 ```
 
 Processing duration p50:
@@ -317,7 +317,7 @@ sum by (from_state, to_state) (increase(documents_state_transitions_total[15m]))
 
 Review decision ratio (approved vs rejected):
 ```promql
-sum(rate(documents_review_approved_total[5m])) / clamp_min(sum(rate(documents_review_rejected_total[5m])), 1)
+sum(rate(document_review_approvals_total[5m])) / clamp_min(sum(rate(document_review_rejections_total[5m])), 1)
 ```
 
 Auth login success vs failed:
@@ -417,16 +417,16 @@ spec:
     - name: document-platform.observability
       rules:
         - alert: HighDocumentProcessingFailureRate
-          expr: rate(documents_processing_failed_total[1m]) * 60 > 5
+          expr: rate(document_processing_failed_total[1m]) * 60 > 5
           for: 2m
           labels:
             severity: warning
           annotations:
             summary: "Document processing failure rate exceeded threshold"
-            description: "documents.processing.failed is above 5 per minute for 2 minutes."
+            description: "document_processing_failed_total is above 5 per minute for 2 minutes."
 
         - alert: DocumentUploadLatencyHigh
-          expr: histogram_quantile(0.99, rate(documents_upload_duration_seconds_bucket[5m])) > 3
+          expr: histogram_quantile(0.99, rate(documents_upload_request_duration_seconds_bucket[5m])) > 3
           for: 5m
           labels:
             severity: critical
@@ -448,7 +448,7 @@ spec:
 
 | Golden Signal | Metric | Grafana Panel |
 |---|---|---|
-| Latency | documents.upload.duration, documents.processing.duration | Upload Duration p50/p95/p99, Processing Duration p50/p95/p99 |
-| Traffic | http_server_requests_seconds_count, documents.upload.requested | Request Rate per service |
-| Errors | documents.upload.failed, documents.processing.failed, auth.login.failed | Error Rate per service, Auth Login Success vs Failed |
+| Latency | documents_upload_request_duration_seconds, document_processing_duration_seconds | Upload Duration p50/p95/p99, Processing Duration p50/p95/p99 |
+| Traffic | http_server_requests_seconds_count, documents_upload_requests_total | Request Rate per service |
+| Errors | documents_upload_requests_failed_total, document_processing_failed_total, auth.login.failed | Error Rate per service, Auth Login Success vs Failed |
 | Saturation | aws_sqs_approximate_number_of_messages_visible_average, documents_state_total{state="PROCESSING"} | SQS Queue Depth, Active Documents in PROCESSING state |

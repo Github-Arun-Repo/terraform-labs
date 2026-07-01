@@ -31,6 +31,38 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSVPCResourceControlle
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSVPCResourceController"
 }
 
+data "aws_iam_policy_document" "cluster_kms_access" {
+  count = var.cluster_secrets_kms_key_arn == null ? 0 : 1
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:DescribeKey",
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:GenerateDataKey*",
+    ]
+    resources = [var.cluster_secrets_kms_key_arn]
+  }
+}
+
+resource "aws_iam_policy" "cluster_kms_access" {
+  count = var.cluster_secrets_kms_key_arn == null ? 0 : 1
+
+  name_prefix = "${var.cluster_name}-cluster-kms-"
+  description = "Allow EKS control plane role to use KMS key for secret envelope encryption."
+  policy      = data.aws_iam_policy_document.cluster_kms_access[0].json
+
+  tags = merge(var.tags, { Name = "${var.cluster_name}-cluster-kms-policy" })
+}
+
+resource "aws_iam_role_policy_attachment" "cluster_kms_access" {
+  count = var.cluster_secrets_kms_key_arn == null ? 0 : 1
+
+  role       = aws_iam_role.cluster.name
+  policy_arn = aws_iam_policy.cluster_kms_access[0].arn
+}
+
 # -- Worker Node IAM Role (shared across all node groups) ----------------------
 
 data "aws_iam_policy_document" "node_assume_role" {

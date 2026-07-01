@@ -24,13 +24,26 @@ resource "aws_vpc_security_group_ingress_rule" "cluster_from_nodes" {
   tags = merge(var.tags, { Name = "${var.cluster_name}-cluster-ingress-nodes" })
 }
 
-resource "aws_vpc_security_group_egress_rule" "cluster_egress" {
-  security_group_id = aws_security_group.cluster.id
-  description       = "Allow all outbound from control plane"
-  ip_protocol       = "-1"
-  cidr_ipv4         = "0.0.0.0/0"
+resource "aws_vpc_security_group_egress_rule" "cluster_egress_to_nodes_kubelet" {
+  security_group_id            = aws_security_group.cluster.id
+  description                  = "Allow control-plane to reach kubelet on nodes"
+  from_port                    = 1025
+  to_port                      = 65535
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.node.id
 
-  tags = merge(var.tags, { Name = "${var.cluster_name}-cluster-egress" })
+  tags = merge(var.tags, { Name = "${var.cluster_name}-cluster-egress-nodes-kubelet" })
+}
+
+resource "aws_vpc_security_group_egress_rule" "cluster_egress_to_nodes_https" {
+  security_group_id            = aws_security_group.cluster.id
+  description                  = "Allow control-plane to reach node webhooks"
+  from_port                    = 443
+  to_port                      = 443
+  ip_protocol                  = "tcp"
+  referenced_security_group_id = aws_security_group.node.id
+
+  tags = merge(var.tags, { Name = "${var.cluster_name}-cluster-egress-nodes-https" })
 }
 
 # -- Node Security Group -------------------------------------------------------
@@ -74,13 +87,57 @@ resource "aws_vpc_security_group_ingress_rule" "node_from_cluster" {
 # managed automatically by the controller (target-type: ip), so no static ALB
 # NodePort rule is declared here.
 
-resource "aws_vpc_security_group_egress_rule" "node_egress" {
+resource "aws_vpc_security_group_egress_rule" "node_egress_self" {
+  security_group_id            = aws_security_group.node.id
+  description                  = "Allow inter-node outbound communication"
+  ip_protocol                  = "-1"
+  referenced_security_group_id = aws_security_group.node.id
+
+  tags = merge(var.tags, { Name = "${var.cluster_name}-node-egress-self" })
+}
+
+resource "aws_vpc_security_group_egress_rule" "node_egress_https" {
   security_group_id = aws_security_group.node.id
-  description       = "Allow all outbound from nodes (NAT for internet)"
-  ip_protocol       = "-1"
+  description       = "Allow HTTPS outbound from nodes"
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
   cidr_ipv4         = "0.0.0.0/0"
 
-  tags = merge(var.tags, { Name = "${var.cluster_name}-node-egress" })
+  tags = merge(var.tags, { Name = "${var.cluster_name}-node-egress-https" })
+}
+
+resource "aws_vpc_security_group_egress_rule" "node_egress_dns_udp" {
+  security_group_id = aws_security_group.node.id
+  description       = "Allow DNS UDP outbound from nodes"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "udp"
+  cidr_ipv4         = var.vpc_cidr
+
+  tags = merge(var.tags, { Name = "${var.cluster_name}-node-egress-dns-udp" })
+}
+
+resource "aws_vpc_security_group_egress_rule" "node_egress_dns_tcp" {
+  security_group_id = aws_security_group.node.id
+  description       = "Allow DNS TCP outbound from nodes"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "tcp"
+  cidr_ipv4         = var.vpc_cidr
+
+  tags = merge(var.tags, { Name = "${var.cluster_name}-node-egress-dns-tcp" })
+}
+
+resource "aws_vpc_security_group_egress_rule" "node_egress_db" {
+  security_group_id = aws_security_group.node.id
+  description       = "Allow database outbound from nodes to private network"
+  from_port         = var.db_port
+  to_port           = var.db_port
+  ip_protocol       = "tcp"
+  cidr_ipv4         = var.vpc_cidr
+
+  tags = merge(var.tags, { Name = "${var.cluster_name}-node-egress-db" })
 }
 
 # -- EKS Cluster ---------------------------------------------------------------
@@ -108,6 +165,22 @@ resource "aws_eks_cluster" "this" {
   depends_on = [
     aws_iam_role_policy_attachment.cluster_AmazonEKSClusterPolicy,
     aws_iam_role_policy_attachment.cluster_AmazonEKSVPCResourceController,
+  ]
+}
+
+resource "aws_eks_encryption_config" "secrets" {
+  count = var.cluster_secrets_kms_key_arn == null ? 0 : 1
+
+  cluster_name = aws_eks_cluster.this.name
+
+  provider {
+    key_arn = var.cluster_secrets_kms_key_arn
+  }
+
+  resources = ["secrets"]
+
+  depends_on = [
+    aws_iam_role_policy_attachment.cluster_kms_access,
   ]
 }
 

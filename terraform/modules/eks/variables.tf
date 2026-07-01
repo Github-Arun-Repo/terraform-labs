@@ -22,9 +22,20 @@ variable "vpc_id" {
   type        = string
 }
 
+variable "vpc_cidr" {
+  description = "CIDR block for the VPC used to scope internal egress rules."
+  type        = string
+}
+
 variable "private_app_subnet_ids" {
   description = "IDs of the private app-tier subnets where nodes and the control plane ENIs are placed."
   type        = list(string)
+}
+
+variable "db_port" {
+  description = "Database port used for restricted node egress toward private data tier."
+  type        = number
+  default     = 5432
 }
 
 variable "node_groups" {
@@ -55,5 +66,11 @@ variable "tags" {
   description = "Tags applied to all resources in this module."
   type        = map(string)
   default     = {}
+}
+
+variable "cluster_secrets_kms_key_arn" {
+  description = "Optional KMS key ARN used to enable EKS envelope encryption for Kubernetes secrets."
+  type        = string
+  default     = null
 }
 

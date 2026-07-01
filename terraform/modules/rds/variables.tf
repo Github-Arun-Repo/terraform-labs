@@ -60,6 +60,12 @@ variable "manage_master_user_password" {
   default     = true
 }
 
+variable "storage_kms_key_id" {
+  description = "Optional KMS key ARN/ID for RDS storage encryption and managed master secret encryption."
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Tags applied to every resource in this module."
   type        = map(string)

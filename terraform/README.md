@@ -122,8 +122,8 @@ flowchart LR
 
 	subgraph SGS["Security Groups"]
 		ALB_SG["ALB SG (AWS LB Controller-managed)\n✅ Ingress: 0.0.0.0/0 :80,:443\n✅ Egress: all"]
-		NODE_SG["Node SG\n✅ Ingress from ALB (controller-managed, target-type ip)\n✅ Ingress from Cluster SG :1025-65535\n✅ Ingress self (inter-node)\n✅ Egress: all → NAT"]
-		CLUSTER_SG["Cluster SG\n✅ Ingress from Node SG :443\n✅ Egress: all"]
+		NODE_SG["Node SG\n✅ Ingress from ALB (controller-managed, target-type ip)\n✅ Ingress from Cluster SG :1025-65535\n✅ Ingress self (inter-node)\n✅ Egress: HTTPS + DNS + DB + self"]
+		CLUSTER_SG["Cluster SG\n✅ Ingress from Node SG :443\n✅ Egress: Node webhooks/kubelet only"]
 		RDS_SG["RDS SG\n✅ Ingress from Node SG :5432\n❌ No ingress from internet"]
 	end
 
@@ -423,3 +423,19 @@ kubectl get nodes --show-labels
 | DynamoDB Lock Table | 25 GB + 25 WCU/RCU free | Negligible (PAY_PER_REQUEST) |
 
 > **Tip:** Set `single_nat_gateway = true` and reduce `desired_size` to `0` for idle environments to minimise costs.
+
+### Lab Safety Flags (Deliberate)
+
+This lab keeps RDS teardown friction low by design:
+
+- `multi_az = false`
+- `deletion_protection = false`
+- `skip_final_snapshot = true`
+
+These are intentional for portfolio/lab cycles where rapid rebuilds matter more than durability guarantees.
+
+For production-style environments, flip these defaults:
+
+- Enable Multi-AZ.
+- Set `deletion_protection = true`.
+- Set `skip_final_snapshot = false` and enforce snapshot retention policy.

@@ -92,6 +92,21 @@ output "documents_inventory_kms_key_alias" {
   value       = module.documents_inventory_s3.kms_key_alias
 }
 
+output "platform_data_kms_key_arn" {
+  description = "ARN of the CMK used by DynamoDB and SQS resources."
+  value       = aws_kms_key.platform_data.arn
+}
+
+output "platform_data_kms_key_alias" {
+  description = "Alias of the CMK used by DynamoDB and SQS resources."
+  value       = aws_kms_alias.platform_data.name
+}
+
+output "eks_secrets_kms_key_arn" {
+  description = "ARN of the CMK used by EKS Kubernetes secret envelope encryption."
+  value       = module.eks.secrets_encryption_kms_key_arn
+}
+
 output "document_ingestion_queue_url" {
   description = "SQS queue URL consumed by document-processing-service"
   value       = aws_sqs_queue.document_ingestion_queue.id
@@ -278,5 +293,10 @@ output "karpenter_node_role_arn" {
 output "karpenter_interruption_queue_name" {
   description = "SQS queue name used by Karpenter interruption handling when karpenter_enabled=true."
   value       = try(aws_sqs_queue.karpenter_interruption[0].name, null)
+}
+
+output "public_edge_waf_web_acl_arn" {
+  description = "ARN of the optional regional WAFv2 web ACL for internet-facing ALB ingress."
+  value       = try(aws_wafv2_web_acl.public_edge[0].arn, null)
 }
 

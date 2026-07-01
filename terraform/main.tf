@@ -40,12 +40,53 @@ resource "aws_security_group" "app" {
 # Allow app tier to reach the internet via NAT (HTTP/HTTPS)
 resource "aws_vpc_security_group_egress_rule" "app_egress" {
   security_group_id = aws_security_group.app.id
-  description       = "Allow all outbound from app tier"
-  ip_protocol       = "-1"
+  description       = "Allow HTTPS outbound from app tier"
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
   cidr_ipv4         = "0.0.0.0/0"
 
   tags = merge(var.default_tags, {
     Name = "${var.vpc_name}-app-egress"
+  })
+}
+
+resource "aws_vpc_security_group_egress_rule" "app_egress_dns_udp" {
+  security_group_id = aws_security_group.app.id
+  description       = "Allow DNS UDP outbound from app tier"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "udp"
+  cidr_ipv4         = module.vpc.vpc_cidr
+
+  tags = merge(var.default_tags, {
+    Name = "${var.vpc_name}-app-egress-dns-udp"
+  })
+}
+
+resource "aws_vpc_security_group_egress_rule" "app_egress_dns_tcp" {
+  security_group_id = aws_security_group.app.id
+  description       = "Allow DNS TCP outbound from app tier"
+  from_port         = 53
+  to_port           = 53
+  ip_protocol       = "tcp"
+  cidr_ipv4         = module.vpc.vpc_cidr
+
+  tags = merge(var.default_tags, {
+    Name = "${var.vpc_name}-app-egress-dns-tcp"
+  })
+}
+
+resource "aws_vpc_security_group_egress_rule" "app_egress_db" {
+  security_group_id = aws_security_group.app.id
+  description       = "Allow DB outbound from app tier to private network"
+  from_port         = var.db_port
+  to_port           = var.db_port
+  ip_protocol       = "tcp"
+  cidr_ipv4         = module.vpc.vpc_cidr
+
+  tags = merge(var.default_tags, {
+    Name = "${var.vpc_name}-app-egress-db"
   })
 }
 
@@ -67,10 +108,13 @@ locals {
 module "eks" {
   source = "./modules/eks"
 
-  cluster_name    = var.eks_cluster_name
-  cluster_version = var.eks_cluster_version
+  cluster_name              = var.eks_cluster_name
+  cluster_version           = var.eks_cluster_version
   authentication_mode = var.eks_authentication_mode
-  vpc_id          = module.vpc.vpc_id
+  vpc_id                    = module.vpc.vpc_id
+  vpc_cidr                  = module.vpc.vpc_cidr
+  db_port                   = var.db_port
+  cluster_secrets_kms_key_arn = aws_kms_key.eks_secrets.arn
 
   private_app_subnet_ids = module.vpc.private_app_subnet_ids
 
@@ -110,7 +154,8 @@ module "service_ecr" {
 resource "aws_sqs_queue" "document_ingestion_dlq" {
   name                      = var.document_ingestion_dlq_name
   message_retention_seconds = var.document_ingestion_dlq_retention_seconds
-  sqs_managed_sse_enabled   = true
+  kms_master_key_id         = aws_kms_key.platform_data.arn
+  kms_data_key_reuse_period_seconds = 300
 
   tags = merge(var.default_tags, {
     Name = var.document_ingestion_dlq_name
@@ -121,7 +166,8 @@ resource "aws_sqs_queue" "document_ingestion_queue" {
   name                       = var.document_ingestion_queue_name
   visibility_timeout_seconds = var.document_ingestion_visibility_timeout_seconds
   message_retention_seconds  = var.document_ingestion_message_retention_seconds
-  sqs_managed_sse_enabled    = true
+  kms_master_key_id          = aws_kms_key.platform_data.arn
+  kms_data_key_reuse_period_seconds = 300
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.document_ingestion_dlq.arn
@@ -135,6 +181,34 @@ resource "aws_sqs_queue" "document_ingestion_queue" {
 
 data "aws_caller_identity" "current" {}
 data "aws_partition" "current" {}
+
+# -- KMS (Platform Data + EKS Secrets) ----------------------------------------
+
+resource "aws_kms_key" "platform_data" {
+  description             = "CMK for DynamoDB and SQS encryption in document platform"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = merge(var.default_tags, { Name = "document-platform-data-kms" })
+}
+
+resource "aws_kms_alias" "platform_data" {
+  name          = var.platform_data_kms_alias_name
+  target_key_id = aws_kms_key.platform_data.key_id
+}
+
+resource "aws_kms_key" "eks_secrets" {
+  description             = "CMK used for EKS Kubernetes secret envelope encryption"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+
+  tags = merge(var.default_tags, { Name = "document-platform-eks-secrets-kms" })
+}
+
+resource "aws_kms_alias" "eks_secrets" {
+  name          = var.eks_secrets_kms_alias_name
+  target_key_id = aws_kms_key.eks_secrets.key_id
+}
 
 # -- GitHub Actions OIDC Federation -------------------------------------------
 
@@ -267,9 +341,66 @@ resource "aws_iam_role" "github_actions_plan" {
   tags = merge(var.default_tags, { Name = "github-actions-plan" })
 }
 
-resource "aws_iam_role_policy_attachment" "github_actions_plan_readonly" {
+data "aws_iam_policy_document" "github_actions_plan_read" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "ec2:Describe*",
+      "eks:Describe*",
+      "eks:List*",
+      "elasticloadbalancing:Describe*",
+      "autoscaling:Describe*",
+      "kms:Describe*",
+      "kms:List*",
+      "rds:Describe*",
+      "rds:ListTagsForResource",
+      "dynamodb:Describe*",
+      "dynamodb:List*",
+      "s3:GetBucketLocation",
+      "s3:GetBucketVersioning",
+      "s3:GetEncryptionConfiguration",
+      "s3:ListBucket",
+      "s3:GetObject",
+      "sqs:GetQueueAttributes",
+      "sqs:GetQueueUrl",
+      "sqs:ListQueues",
+      "secretsmanager:DescribeSecret",
+      "secretsmanager:GetResourcePolicy",
+      "secretsmanager:ListSecrets",
+      "ecr:Describe*",
+      "ecr:List*",
+      "iam:GetRole",
+      "iam:GetPolicy",
+      "iam:GetPolicyVersion",
+      "iam:ListAttachedRolePolicies",
+      "iam:ListRolePolicies",
+      "iam:ListOpenIDConnectProviders",
+      "iam:GetOpenIDConnectProvider",
+      "iam:ListRoles",
+      "logs:DescribeLogGroups",
+      "logs:DescribeLogStreams",
+      "cloudwatch:Describe*",
+      "cloudwatch:GetMetricData",
+      "cloudwatch:ListMetrics",
+      "wafv2:GetWebACL",
+      "wafv2:ListWebACLs",
+      "wafv2:ListResourcesForWebACL",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "github_actions_plan_read" {
+  name_prefix = "github-actions-plan-read-"
+  description = "Scoped read policy for Terraform plan jobs (replaces account-wide ReadOnlyAccess)."
+  policy      = data.aws_iam_policy_document.github_actions_plan_read.json
+
+  tags = merge(var.default_tags, { Name = "github-actions-plan-read-policy" })
+}
+
+resource "aws_iam_role_policy_attachment" "github_actions_plan_read" {
   role       = aws_iam_role.github_actions_plan.name
-  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+  policy_arn = aws_iam_policy.github_actions_plan_read.arn
 }
 
 data "aws_iam_policy_document" "allow_s3_to_send_document_events" {
@@ -365,7 +496,8 @@ resource "aws_dynamodb_table" "document_inventory" {
   }
 
   server_side_encryption {
-    enabled = true
+    enabled     = true
+    kms_key_arn = aws_kms_key.platform_data.arn
   }
 
   tags = merge(var.default_tags, {
@@ -424,8 +556,75 @@ module "rds" {
   db_name     = var.db_name
   db_username = var.db_username
   manage_master_user_password = var.db_manage_master_user_password
+  storage_kms_key_id          = aws_kms_key.platform_data.arn
 
   tags = var.default_tags
+}
+
+# -- Optional WAF (Public Edge) -----------------------------------------------
+
+resource "aws_wafv2_web_acl" "public_edge" {
+  count = var.enable_public_edge_waf ? 1 : 0
+
+  name        = "${var.vpc_name}-public-edge"
+  description = "Regional WAF for internet-facing ALB ingress resources"
+  scope       = "REGIONAL"
+
+  default_action {
+    allow {}
+  }
+
+  rule {
+    name     = "AWSManagedRulesCommonRuleSet"
+    priority = 10
+
+    override_action {
+      none {}
+    }
+
+    statement {
+      managed_rule_group_statement {
+        vendor_name = "AWS"
+        name        = "AWSManagedRulesCommonRuleSet"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "public-edge-common-rules"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  rule {
+    name     = "RateLimitPerIp"
+    priority = 20
+
+    action {
+      block {}
+    }
+
+    statement {
+      rate_based_statement {
+        limit              = var.public_edge_waf_rate_limit
+        aggregate_key_type = "IP"
+      }
+    }
+
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "public-edge-rate-limit"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  visibility_config {
+    cloudwatch_metrics_enabled = true
+    metric_name                = "public-edge-waf"
+    sampled_requests_enabled   = true
+  }
+
+  tags = merge(var.default_tags, { Name = "${var.vpc_name}-public-edge-waf" })
 }
 
 # -- IRSA: Jenkins Build Agent → ECR Push -------------------------------------

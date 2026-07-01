@@ -195,7 +195,8 @@ resource "aws_sqs_queue" "karpenter_interruption" {
 
   name                      = "${var.eks_cluster_name}-karpenter-interruption"
   message_retention_seconds = 300
-  sqs_managed_sse_enabled   = true
+  kms_master_key_id         = aws_kms_key.platform_data.arn
+  kms_data_key_reuse_period_seconds = 300
 
   tags = merge(var.default_tags, { Name = "${var.eks_cluster_name}-karpenter-interruption" })
 }
@@ -312,9 +313,26 @@ data "aws_iam_policy_document" "karpenter_controller" {
     actions = [
       "ec2:CreateFleet",
       "ec2:RunInstances",
-      "ec2:TerminateInstances",
       "ec2:CreateLaunchTemplate",
-      "ec2:DeleteLaunchTemplate",
+    ]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/kubernetes.io/cluster/${var.eks_cluster_name}"
+      values   = ["owned"]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "aws:RequestTag/karpenter.sh/nodepool"
+      values   = ["*"]
+    }
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
       "ec2:Describe*",
       "ec2:GetInstanceTypesFromInstanceRequirements",
       "pricing:GetProducts",
@@ -322,6 +340,40 @@ data "aws_iam_policy_document" "karpenter_controller" {
       "eks:DescribeCluster",
     ]
     resources = ["*"]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "ec2:DeleteLaunchTemplate",
+    ]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/kubernetes.io/cluster/${var.eks_cluster_name}"
+      values   = ["owned"]
+    }
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "ec2:TerminateInstances",
+    ]
+    resources = ["*"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/kubernetes.io/cluster/${var.eks_cluster_name}"
+      values   = ["owned"]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "ec2:ResourceTag/karpenter.sh/nodepool"
+      values   = ["*"]
+    }
   }
 
   statement {

@@ -61,3 +61,8 @@ output "eks_addon_versions" {
   }
 }
 
+output "secrets_encryption_kms_key_arn" {
+  description = "KMS key ARN used for EKS Kubernetes secret envelope encryption when enabled."
+  value       = var.cluster_secrets_kms_key_arn
+}
+

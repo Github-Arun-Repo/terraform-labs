@@ -55,7 +55,6 @@ public class DecisionService {
         String actor = currentUserService.username();
         saveDecision(documentId, ReviewDecisionType.APPROVED.name(), actor, null, request.getComment());
         auditService.recordStatusTransition(documentId, oldStatus.name(), DocumentStatus.APPROVED.name(), actor, "Document approved");
-        meterRegistry.counter("documents.review.approved").increment();
         meterRegistry.counter("document_review_approvals_total").increment();
 
         return ApproveDocumentResponse.builder()
@@ -81,7 +80,6 @@ public class DecisionService {
         String actor = currentUserService.username();
         saveDecision(documentId, ReviewDecisionType.REJECTED.name(), actor, request.getReasonCode().name(), request.getComment());
         auditService.recordStatusTransition(documentId, oldStatus.name(), DocumentStatus.REJECTED.name(), actor, "Document rejected");
-        meterRegistry.counter("documents.review.rejected").increment();
         meterRegistry.counter("document_review_rejections_total", "reason", request.getReasonCode().name()).increment();
 
         return RejectDocumentResponse.builder()

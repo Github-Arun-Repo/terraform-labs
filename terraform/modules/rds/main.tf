@@ -61,8 +61,10 @@ resource "aws_vpc_security_group_ingress_rule" "rds_from_app" {
 
 resource "aws_vpc_security_group_egress_rule" "rds_egress" {
   security_group_id = aws_security_group.rds.id
-  description       = "Allow all outbound (for patch/update traffic)"
-  ip_protocol       = "-1"
+  description       = "Allow HTTPS outbound (control-plane managed operations)"
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
   cidr_ipv4         = "0.0.0.0/0"
 
   tags = merge(var.tags, {
@@ -101,11 +103,13 @@ resource "aws_db_instance" "this" {
   max_allocated_storage = 0     # disable auto-scaling to stay within free tier
   storage_type          = "gp2"
   storage_encrypted     = true
+  kms_key_id            = var.storage_kms_key_id
 
   # Database
   db_name                     = var.db_name
   username                    = var.db_username
   manage_master_user_password = var.manage_master_user_password
+  master_user_secret_kms_key_id = var.storage_kms_key_id
   password                    = var.manage_master_user_password ? null : random_password.master.result
   port                        = var.db_port
 

@@ -186,6 +186,35 @@ variable "documents_inventory_kms_key_description" {
   default     = "KMS key for documents-inventory-s3 bucket encryption"
 }
 
+variable "platform_data_kms_alias_name" {
+  description = "Alias for the CMK used by DynamoDB and SQS resources in the document platform."
+  type        = string
+  default     = "alias/document-platform-data"
+}
+
+variable "eks_secrets_kms_alias_name" {
+  description = "Alias for the CMK used by EKS Kubernetes secret envelope encryption."
+  type        = string
+  default     = "alias/document-platform-eks-secrets"
+}
+
+variable "enable_public_edge_waf" {
+  description = "Create a regional WAFv2 web ACL for internet-facing ALB ingress entrypoints."
+  type        = bool
+  default     = false
+}
+
+variable "public_edge_waf_rate_limit" {
+  description = "Per-IP rate limit (5-minute window) for the optional public edge WAF rule."
+  type        = number
+  default     = 2000
+
+  validation {
+    condition     = var.public_edge_waf_rate_limit >= 100
+    error_message = "public_edge_waf_rate_limit must be >= 100 requests per 5-minute window."
+  }
+}
+
 variable "enable_documents_inventory_sqs_notifications" {
   description = "Whether to enable S3 ObjectCreated notifications from document inventory bucket to SQS."
   type        = bool
