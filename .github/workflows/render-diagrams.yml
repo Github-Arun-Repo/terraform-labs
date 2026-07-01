@@ -4,9 +4,8 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - docs/diagrams/architecture.py
-      - docs/diagrams/requirements.txt
-      - docs/diagrams/README.md
+      - .github/workflows/render-diagrams.yml
+      - docs/diagrams/**
       - README.md
 
 permissions:
@@ -15,6 +14,9 @@ permissions:
 jobs:
   render:
     runs-on: ubuntu-latest
+    concurrency:
+      group: render-diagrams-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,6 +41,11 @@ jobs:
 
       - name: Commit rendered diagrams
         run: |
+          if [[ -z "$(ls -1 docs/diagrams/*.png 2>/dev/null)" ]]; then
+            echo "No PNG files were generated."
+            exit 1
+          fi
+
           if git diff --quiet -- docs/diagrams/*.png; then
             echo "No diagram changes to commit."
             exit 0
