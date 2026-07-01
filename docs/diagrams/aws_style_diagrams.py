@@ -1,8 +1,8 @@
 """Generate simplified AWS-style architecture diagrams.
 
 Outputs (PNG):
-- docs/diagrams/aws-infrastructure-overview.png
-- docs/diagrams/aws-application-overview.png
+- docs/diagrams/system-context.png
+- docs/diagrams/event-flow.png
 """
 
 from pathlib import Path
@@ -10,15 +10,12 @@ from pathlib import Path
 from diagrams import Cluster, Diagram, Edge
 from diagrams.aws.compute import EKS
 from diagrams.aws.database import Dynamodb, RDS
+from diagrams.aws.devtools import Codepipeline
 from diagrams.aws.general import Users
 from diagrams.aws.integration import SQS
 from diagrams.aws.network import ALB, NATGateway
-from diagrams.aws.security import IAM, KMS
+from diagrams.aws.security import KMS, SecretsManager
 from diagrams.aws.storage import ECR, S3
-from diagrams.onprem.ci import GithubActions
-from diagrams.onprem.gitops import Argocd
-from diagrams.onprem.iac import Terraform
-from diagrams.onprem.vcs import Github
 
 OUT_DIR = Path(__file__).resolve().parent
 
@@ -39,7 +36,7 @@ def _graph_attrs() -> dict[str, str]:
 def generate_infrastructure_overview() -> None:
     with Diagram(
         "Terraform Labs - AWS Infrastructure Overview",
-        filename=str(OUT_DIR / "aws-infrastructure-overview"),
+        filename=str(OUT_DIR / "system-context"),
         show=False,
         outformat="png",
         direction="LR",
@@ -61,20 +58,22 @@ def generate_infrastructure_overview() -> None:
             queue = SQS("SQS + DLQ")
             kms = KMS("KMS CMKs")
             nat = NATGateway("NAT Gateway")
+            secrets = SecretsManager("Secrets Manager")
 
-        with Cluster("Delivery Control Plane"):
-            git = Github("GitHub")
-            ci = GithubActions("GitHub Actions")
-            tf = Terraform("Terraform")
-            gitops = Argocd("ArgoCD")
+        with Cluster("Delivery and Control Plane"):
+            git = Users("Git Repository")
+            ci = Codepipeline("GitHub Actions CI")
+            tf = Codepipeline("Terraform Provisioning")
+            gitops = Codepipeline("ArgoCD GitOps")
             ecr = ECR("ECR")
-            iam = IAM("OIDC / IRSA")
+            iam = Users("OIDC / IRSA Access")
 
         users >> Edge(label="HTTPS") >> alb >> eks >> apps
         apps >> Edge(label="DB") >> rds
         apps >> Edge(label="state") >> data_store
         apps >> Edge(label="files") >> object_store
         object_store >> Edge(label="events") >> queue >> apps
+        apps >> Edge(label="credentials") >> secrets
 
         kms >> object_store
         kms >> data_store
@@ -96,7 +95,7 @@ def generate_infrastructure_overview() -> None:
 def generate_application_overview() -> None:
     with Diagram(
         "Terraform Labs - Application Workflow Overview",
-        filename=str(OUT_DIR / "aws-application-overview"),
+        filename=str(OUT_DIR / "event-flow"),
         show=False,
         outformat="png",
         direction="LR",

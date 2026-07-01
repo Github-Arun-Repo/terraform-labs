@@ -13,7 +13,7 @@ This application layer enables:
 ## Application Overview Diagram (AWS Style)
 
 <p align="center">
-   <img src="../docs/diagrams/aws-application-overview.png" alt="Simplified application workflow overview" width="100%" />
+   <img src="../docs/diagrams/event-flow.png" alt="Simplified application workflow overview" width="100%" />
 </p>
 
 This diagram keeps the flow simple and readable: identity, intake, event-driven processing, and finance review with clear handoff points.
