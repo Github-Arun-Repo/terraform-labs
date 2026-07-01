@@ -8,24 +8,6 @@ This repository demonstrates end-to-end ownership of enterprise platform design:
 
 ---
 
-## 🖼️ Architecture Visuals (AWS Icons)
-
-<p align="center">
-  <img src="docs/diagrams/system-context.png" alt="Terraform Labs system context diagram" width="100%" />
-</p>
-
-<p align="center">
-  <img src="docs/diagrams/event-flow.png" alt="Terraform Labs S3 to SQS to processing event flow diagram" width="100%" />
-</p>
-
-<p align="center">
-  <img src="docs/diagrams/cicd-supply-chain.png" alt="Terraform Labs CI CD and supply chain diagram" width="100%" />
-</p>
-
-Regenerate these PNGs with Python diagrams: `python3 docs/diagrams/architecture.py` (see `docs/diagrams/README.md` for prerequisites).
-
----
-
 ## 🎯 Quick Navigation
 
 Explore five core domains of this architecture. **Click any box below to dive into detailed documentation:**
