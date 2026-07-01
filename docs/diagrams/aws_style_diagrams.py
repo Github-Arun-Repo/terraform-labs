@@ -10,7 +10,7 @@ from pathlib import Path
 from diagrams import Cluster, Diagram, Edge
 from diagrams.aws.compute import EKS
 from diagrams.aws.database import Dynamodb, RDS
-from diagrams.aws.devtools import Codepipeline
+from diagrams.aws.devtools import Codebuild
 from diagrams.aws.general import Users
 from diagrams.aws.integration import SQS
 from diagrams.aws.network import ALB, NATGateway
@@ -62,9 +62,9 @@ def generate_infrastructure_overview() -> None:
 
         with Cluster("Delivery and Control Plane"):
             git = Users("Git Repository")
-            ci = Codepipeline("GitHub Actions CI")
-            tf = Codepipeline("Terraform Provisioning")
-            gitops = Codepipeline("ArgoCD GitOps")
+            ci = Codebuild("GitHub Actions CI")
+            tf = Codebuild("Terraform Provisioning")
+            gitops = Codebuild("ArgoCD GitOps")
             ecr = ECR("ECR")
             iam = Users("OIDC / IRSA Access")
 

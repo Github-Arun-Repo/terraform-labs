@@ -11,7 +11,7 @@ from pathlib import Path
 from diagrams import Cluster, Diagram, Edge
 from diagrams.aws.compute import ECR, EKS
 from diagrams.aws.database import Dynamodb, RDS
-from diagrams.aws.devtools import Codebuild, Codepipeline
+from diagrams.aws.devtools import Codebuild
 from diagrams.aws.general import Users
 from diagrams.aws.integration import SQS
 from diagrams.aws.management import Cloudwatch
@@ -154,7 +154,7 @@ def generate_cicd_supply_chain() -> None:
         repo = Users("GitHub Repository")
 
         with Cluster("CI and Verification"):
-            actions = Codepipeline("GitHub Actions")
+            actions = Codebuild("GitHub Actions")
             security_scan = Codebuild("Trivy + CodeQL")
             build = Codebuild("Build/Test Stage")
             tf = Codebuild("Terraform Plan")
