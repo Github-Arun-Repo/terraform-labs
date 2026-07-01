@@ -94,7 +94,7 @@ def generate_infrastructure_overview() -> None:
 
 def generate_application_overview() -> None:
     with Diagram(
-        "Terraform Labs - Application Workflow Overview",
+        "Terraform Labs - Application Architecture Overview",
         filename=str(OUT_DIR / "event-flow"),
         show=False,
         outformat="png",
@@ -103,25 +103,52 @@ def generate_application_overview() -> None:
     ):
         supplier = Users("Supplier/Admin")
         finance = Users("Finance Reviewer")
+        alb = ALB("Public ALB")
 
-        ums = EKS("user-management-service")
-        api = EKS("document-api-service")
-        processing = EKS("document-processing-service")
-        review = EKS("document-review-service")
+        with Cluster("EKS Application Tier"):
+            ums = EKS("user-management-service")
+            api = EKS("document-api-service")
+            processing = EKS("document-processing-service")
+            review = EKS("document-review-service")
 
-        postgres = RDS("Identity DB")
-        bucket = S3("Document Bucket")
-        queue = SQS("Ingestion Queue")
-        inventory = Dynamodb("DocumentInventory")
+        with Cluster("Core Data Services"):
+            postgres = RDS("RDS PostgreSQL\nIdentity + Refresh Tokens")
+            inventory = Dynamodb("DynamoDB\nDocumentInventory")
+            bucket = S3("S3\nRaw + Processed Documents")
+            queue = SQS("SQS\nIngestion Queue")
+            dlq = SQS("SQS\nDead-Letter Queue")
 
-        supplier >> Edge(label="login") >> ums >> postgres
-        supplier >> Edge(label="upload request") >> api
-        api >> inventory
-        supplier >> Edge(label="upload file") >> bucket
-        bucket >> Edge(label="ObjectCreated") >> queue >> processing
-        processing >> inventory
-        processing >> bucket
-        finance >> Edge(label="review / decision") >> review >> inventory
+        with Cluster("Security Controls"):
+            secrets = SecretsManager("Secrets Manager")
+            kms = KMS("KMS CMKs")
+
+        supplier >> Edge(label="authenticate") >> alb >> ums
+        ums >> Edge(label="user auth state") >> postgres
+
+        supplier >> Edge(label="JWT + upload request") >> alb >> api
+        api >> Edge(label="metadata") >> inventory
+        api >> Edge(label="presigned URL") >> bucket
+
+        supplier >> Edge(label="upload document") >> bucket
+        bucket >> Edge(label="ObjectCreated event") >> queue
+        queue >> Edge(label="consume + process") >> processing
+        queue >> Edge(label="failed messages", style="dashed") >> dlq
+
+        processing >> Edge(label="status + extraction") >> inventory
+        processing >> Edge(label="processed artifacts") >> bucket
+
+        finance >> Edge(label="review / approve / reject") >> alb >> review
+        review >> Edge(label="read/write decisions") >> inventory
+        review >> Edge(label="fetch documents") >> bucket
+
+        secrets >> ums
+        secrets >> api
+        secrets >> processing
+        secrets >> review
+
+        kms >> bucket
+        kms >> queue
+        kms >> inventory
 
 
 def main() -> None:

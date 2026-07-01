@@ -16,7 +16,7 @@ This application layer enables:
    <img src="../docs/diagrams/event-flow.png" alt="Simplified application workflow overview" width="78%" />
 </p>
 
-This diagram keeps the flow simple and readable: identity, intake, event-driven processing, and finance review with clear handoff points.
+This executive-style AWS diagram highlights the full application architecture: authentication, RDS-backed identity state, document intake, event-driven processing, review decisions, and security controls.
 
 ## Business Capability Map
 
